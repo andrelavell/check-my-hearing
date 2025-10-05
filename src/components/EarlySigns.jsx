@@ -10,7 +10,7 @@ export default function EarlySigns({ onBack, onStart }) {
             <div className="w-10 h-10 bg-primary-600 rounded-md flex items-center justify-center">
               <Headphones className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-clinical-900">HearWell</span>
+            <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           <button
             onClick={onBack}
@@ -290,7 +290,7 @@ export default function EarlySigns({ onBack, onStart }) {
       <footer className="bg-clinical-900 text-white py-8">
         <div className="container-safe">
           <div className="text-center text-clinical-400">
-            <p className="mb-2">© 2024 HearWell. All rights reserved.</p>
+            <p className="mb-2">© 2024 CheckMyHearing. All rights reserved.</p>
             <p className="text-sm">Professional hearing screening for everyone.</p>
           </div>
         </div>

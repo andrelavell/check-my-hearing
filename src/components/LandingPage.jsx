@@ -19,7 +19,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
             <div className="w-10 h-10 bg-primary-500 rounded-md flex items-center justify-center">
               <Headphones className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-clinical-900">HearWell</span>
+            <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           
           {/* Desktop Navigation */}
@@ -273,7 +273,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
                 <div className="w-10 h-10 bg-primary-500 rounded-md flex items-center justify-center">
                   <Headphones className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-xl font-bold">HearWell</span>
+                <span className="text-xl font-bold">CheckMyHearing</span>
               </div>
               <p className="text-clinical-400 text-sm">
                 Professional hearing assessment trusted by audiologists worldwide.
@@ -322,7 +322,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
           </div>
           
           <div className="border-t border-clinical-800 pt-6 text-center text-clinical-400 text-sm">
-            <p>&copy; {new Date().getFullYear()} HearWell. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} CheckMyHearing. All rights reserved.</p>
           </div>
         </div>
       </footer>

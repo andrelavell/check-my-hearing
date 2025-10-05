@@ -11,7 +11,7 @@ export default function ScientificValidation({ onBack }) {
             <div className="w-10 h-10 bg-primary-600 rounded-md flex items-center justify-center">
               <Headphones className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-clinical-900">HearWell</span>
+            <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           <button
             onClick={onBack}
@@ -46,7 +46,7 @@ export default function ScientificValidation({ onBack }) {
             <h2 className="text-3xl font-bold text-clinical-900 mb-6">Evidence-Based Testing</h2>
             <div className="prose prose-lg max-w-none">
               <p className="text-clinical-700 text-lg leading-relaxed mb-6">
-                The HearWell online hearing test is grounded in scientifically validated audiometric principles used by hearing healthcare professionals worldwide. Our methodology combines pure-tone audiometry techniques with adaptive testing algorithms to provide accurate hearing assessments in a digital format.
+                The CheckMyHearing online hearing test is grounded in scientifically validated audiometric principles used by hearing healthcare professionals worldwide. Our methodology combines pure-tone audiometry techniques with adaptive testing algorithms to provide accurate hearing assessments in a digital format.
               </p>
               <p className="text-clinical-700 text-lg leading-relaxed">
                 While online screening cannot replace comprehensive clinical audiometry, multiple peer-reviewed studies have demonstrated the effectiveness of web-based hearing tests as reliable first-line screening tools for identifying potential hearing loss.
@@ -329,7 +329,7 @@ export default function ScientificValidation({ onBack }) {
       <footer className="bg-clinical-900 text-white py-8">
         <div className="container-safe">
           <div className="text-center text-clinical-400">
-            <p className="mb-2">© 2024 HearWell. All rights reserved.</p>
+            <p className="mb-2">© 2024 CheckMyHearing. All rights reserved.</p>
             <p className="text-sm">Professional hearing screening for everyone.</p>
           </div>
         </div>

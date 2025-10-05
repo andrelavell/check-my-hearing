@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Volume2, Loader2, Check, X, CheckCircle2, Clock, Award, Lock, Plus, Minus, AlertCircle } from 'lucide-react'
+import { Volume2, Loader2, Check, X, CheckCircle2, Clock, Award, Lock, Plus, Minus, AlertCircle, Play, Pause } from 'lucide-react'
 import { STATS } from '../constants/stats'
 
 // Test frequencies in Hz (standard audiometric frequencies)
@@ -839,10 +839,10 @@ export default function HearingTest({ userData, onComplete }) {
             <h2 className="text-2xl sm:text-3xl font-bold text-clinical-900 mb-3">
               {isAdjustmentTest ? 'Threshold Adjustment' : 'Stimulus Detection'}
             </h2>
-            <p className="text-clinical-600 text-sm">
+            <p className="text-clinical-600 text-lg">
               {isAdjustmentTest 
-                ? 'Press play, adjust to the softest sound you can hear, then press Next'
-                : 'Activate tone, listen carefully, and respond'}
+                ? 'Press the Play button (▶), adjust volume to the softest sound you can hear, then press Next'
+                : 'Press the button to play the tone, listen carefully, then respond'}
             </p>
           </div>
 
@@ -859,13 +859,14 @@ export default function HearingTest({ userData, onComplete }) {
               <button
                 onClick={handlePlayTone}
                 disabled={isPlaying || countdown !== null}
-                className={`w-24 h-24 rounded-md flex items-center justify-center transition-all relative ${
+                className={`w-28 h-28 rounded-md flex flex-col items-center justify-center transition-all relative ${
                   isPlaying || countdown !== null
                     ? 'bg-primary-400 cursor-not-allowed'
                     : 'bg-primary-600 hover:bg-primary-700'
-                } ${isPulsing ? 'ring-2 ring-primary-400 animate-pulse' : ''}`}
+                } ${isPulsing ? 'ring-4 ring-primary-400 animate-pulse' : ''}`}
               >
-                <Volume2 className={`w-10 h-10 text-white ${isPlaying && !countdown ? 'animate-pulse' : ''}`} />
+                <Play className={`w-12 h-12 text-white ${isPlaying && !countdown ? 'animate-pulse' : ''}`} />
+                <span className="text-white text-sm font-bold mt-1">PLAY</span>
               </button>
             </div>
           ) : (
@@ -875,43 +876,42 @@ export default function HearingTest({ userData, onComplete }) {
                 <button
                   onClick={handleVolumeDecrease}
                   disabled={adjustmentDb <= MIN_DB}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                  className={`w-24 h-24 rounded-full flex flex-col items-center justify-center transition-all ${
                     adjustmentDb <= MIN_DB
                       ? 'bg-clinical-200 cursor-not-allowed'
                       : 'bg-primary-600 hover:bg-primary-700'
                   }`}
                 >
-                  <Minus className="w-8 h-8 text-white" />
+                  <Minus className="w-10 h-10 text-white" />
+                  <span className="text-white text-xs font-semibold mt-1">Softer</span>
                 </button>
 
                 <button
                   onClick={toggleAdjustmentTone}
-                  className={`w-24 h-24 rounded-md flex items-center justify-center transition-all ${
+                  className={`w-28 h-28 rounded-md flex items-center justify-center transition-all ${
                     adjustmentPlaying
                       ? 'bg-primary-700'
                       : 'bg-primary-600 hover:bg-primary-700'
-                  } ${isPulsing ? 'ring-2 ring-primary-400' : ''}`}
+                  } ${isPulsing ? 'ring-4 ring-primary-400' : ''}`}
                 >
                   {adjustmentPlaying ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="w-6 h-6 bg-white rounded-sm"></div>
-                      <div className="w-6 h-6 bg-white rounded-sm"></div>
-                    </div>
+                    <Pause className="w-12 h-12 text-white" />
                   ) : (
-                    <Volume2 className="w-10 h-10 text-white" />
+                    <Play className="w-12 h-12 text-white" />
                   )}
                 </button>
 
                 <button
                   onClick={handleVolumeIncrease}
                   disabled={adjustmentDb >= MAX_DB}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                  className={`w-24 h-24 rounded-full flex flex-col items-center justify-center transition-all ${
                     adjustmentDb >= MAX_DB
                       ? 'bg-clinical-200 cursor-not-allowed'
                       : 'bg-primary-600 hover:bg-primary-700'
                   }`}
                 >
-                  <Plus className="w-8 h-8 text-white" />
+                  <Plus className="w-10 h-10 text-white" />
+                  <span className="text-white text-xs font-semibold mt-1">Louder</span>
                 </button>
               </div>
             </div>
@@ -979,10 +979,10 @@ export default function HearingTest({ userData, onComplete }) {
                     canHear === true ? 'text-primary-600' : !hasPlayedTone ? 'text-clinical-300' : 'text-clinical-400'
                   }`} />
                 </div>
-                <span className={`font-semibold text-sm sm:text-base ${
+                <span className={`font-bold text-base sm:text-lg ${
                   canHear === true ? 'text-primary-600' : !hasPlayedTone ? 'text-clinical-400' : 'text-clinical-600'
                 }`}>
-                  Detected
+                  YES, I HEARD IT
                 </span>
               </button>
 
@@ -1004,10 +1004,10 @@ export default function HearingTest({ userData, onComplete }) {
                     canHear === false ? 'text-clinical-600' : !hasPlayedTone ? 'text-clinical-300' : 'text-clinical-400'
                   }`} />
                 </div>
-                <span className={`font-semibold text-sm sm:text-base ${
+                <span className={`font-bold text-base sm:text-lg ${
                   canHear === false ? 'text-clinical-600' : !hasPlayedTone ? 'text-clinical-400' : 'text-clinical-600'
                 }`}>
-                  Not Detected
+                  NO, I DIDN'T HEAR IT
                 </span>
               </button>
             </div>
@@ -1016,18 +1016,18 @@ export default function HearingTest({ userData, onComplete }) {
               <button
                 onClick={handleAdjustmentComplete}
                 disabled={!hasPlayedTone}
-                className={`btn-primary px-12 py-4 text-lg font-semibold ${
+                className={`btn-primary px-16 py-5 text-xl font-bold ${
                   !hasPlayedTone ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
-                Next
+                NEXT
               </button>
             </div>
           )}
         </div>
 
-        <div className="text-center text-sm text-clinical-600 mt-6">
-          <p>Ensure proper headphone positioning — Quiet environment</p>
+        <div className="text-center text-base text-clinical-700 mt-6 font-medium">
+          <p>Make sure your headphones are on correctly and you're in a quiet room</p>
         </div>
       </div>
     </div>

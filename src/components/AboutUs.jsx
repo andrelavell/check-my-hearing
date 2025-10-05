@@ -10,7 +10,7 @@ export default function AboutUs({ onBack }) {
             <div className="w-10 h-10 bg-primary-600 rounded-md flex items-center justify-center">
               <Headphones className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-clinical-900">HearWell</span>
+            <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           <button
             onClick={onBack}
@@ -26,7 +26,7 @@ export default function AboutUs({ onBack }) {
         <div className="container-safe">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-clinical-900 mb-6">
-              About HearWell
+              About CheckMyHearing
             </h1>
             <p className="text-xl text-clinical-700 leading-relaxed">
               Pioneering accessible, professional-grade hearing assessments for everyone, everywhere.
@@ -47,7 +47,7 @@ export default function AboutUs({ onBack }) {
             </div>
             <div className="prose prose-lg max-w-none">
               <p className="text-clinical-700 text-lg leading-relaxed mb-6">
-                At HearWell, we believe that hearing health is fundamental to quality of life. Our mission is to make professional-grade hearing assessments accessible to everyone through innovative technology and evidence-based testing methods.
+                At CheckMyHearing, we believe that hearing health is fundamental to quality of life. Our mission is to make professional-grade hearing assessments accessible to everyone through innovative technology and evidence-based testing methods.
               </p>
               <p className="text-clinical-700 text-lg leading-relaxed">
                 We understand that hearing loss can be gradual and often goes unnoticed until it significantly impacts daily life. That's why we've developed a fast, accurate, and completely free online hearing test that can be completed in just 3 minutes from the comfort of your home.
@@ -104,13 +104,13 @@ export default function AboutUs({ onBack }) {
             </div>
             <div className="prose prose-lg max-w-none">
               <p className="text-clinical-700 text-lg leading-relaxed mb-6">
-                HearWell was founded in 2020 by a team of audiologists, software engineers, and healthcare advocates who recognized a critical gap in hearing health awareness. Despite hearing loss affecting millions worldwide, many people delay getting their hearing checked due to barriers like cost, time, or simply not knowing where to start.
+                CheckMyHearing was founded in 2020 by a team of audiologists, software engineers, and healthcare advocates who recognized a critical gap in hearing health awareness. Despite hearing loss affecting millions worldwide, many people delay getting their hearing checked due to barriers like cost, time, or simply not knowing where to start.
               </p>
               <p className="text-clinical-700 text-lg leading-relaxed mb-6">
                 We set out to solve this problem by creating a scientifically validated online hearing test that anyone could take in minutes. Our platform has since helped over 47,000 people take the first step toward better hearing health.
               </p>
               <p className="text-clinical-700 text-lg leading-relaxed">
-                Today, HearWell is trusted by individuals, healthcare providers, and organizations worldwide as a reliable first-line screening tool for hearing health. We continue to refine our technology and expand our reach, always with the goal of making hearing care accessible to all.
+                Today, CheckMyHearing is trusted by individuals, healthcare providers, and organizations worldwide as a reliable first-line screening tool for hearing health. We continue to refine our technology and expand our reach, always with the goal of making hearing care accessible to all.
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function AboutUs({ onBack }) {
       <footer className="bg-clinical-900 text-white py-8">
         <div className="container-safe">
           <div className="text-center text-clinical-400">
-            <p className="mb-2">© 2024 HearWell. All rights reserved.</p>
+            <p className="mb-2">© 2024 CheckMyHearing. All rights reserved.</p>
             <p className="text-sm">Professional hearing screening for everyone.</p>
           </div>
         </div>

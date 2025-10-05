@@ -1,4 +1,4 @@
-# HearWell - Professional Hearing Test
+# CheckMyHearing - Professional Hearing Test
 
 A modern, mobile-responsive web application for conducting online hearing tests. Users can assess their hearing health through a professional-grade test that includes questionnaire, frequency testing, and detailed results.
 
