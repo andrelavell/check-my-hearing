@@ -109,7 +109,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
       <div className="bg-white border-b border-gray-200">
         <div className="container-safe py-3">
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm sm:text-base">
-            <span className="font-semibold text-clinical-900">{STATS.testsThisWeek} people tested this week</span>
+            <span className="font-semibold text-clinical-900">The Most Trusted Online Test by Audiologists</span>
             <span className="text-clinical-600">•</span>
             <div className="flex items-center gap-1">
               <span className="font-bold text-clinical-900">{STATS.averageRating}/5</span>
@@ -124,7 +124,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
               </div>
             </div>
             <span className="text-clinical-600 hidden sm:inline">•</span>
-            <span className="text-clinical-600 text-xs sm:text-sm">Based on {STATS.totalReviews} reviews</span>
+            <span className="text-clinical-600 text-xs sm:text-sm">Clinical-Grade 3-Minute Test</span>
           </div>
         </div>
       </div>

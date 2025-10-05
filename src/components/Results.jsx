@@ -1,5 +1,6 @@
 import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, TrendingDown, TrendingUp, Minus, ExternalLink, Volume2 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { appendUtmParams } from '../utils/utm'
 
 export default function Results({ results, userData, onRestart }) {
   const { leftEar, rightEar, leftScore, rightScore, overallScore } = results
@@ -566,7 +567,7 @@ export default function Results({ results, userData, onRestart }) {
                 <p className="text-primary-100 text-sm">Explore the Nova hearing aid designed for your hearing needs.</p>
               </div>
               <a
-                href="https://heardirectclub.com/products/nova"
+                href={appendUtmParams("https://heardirectclub.com/products/nova")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white text-primary-600 hover:bg-primary-50 font-bold px-6 py-3 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"

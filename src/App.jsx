@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import LandingPage from './components/LandingPage'
 import AboutUs from './components/AboutUs'
 import ContactUs from './components/ContactUs'
@@ -8,6 +8,7 @@ import Questionnaire from './components/Questionnaire'
 import HearingTest from './components/HearingTest'
 import EmailCollection from './components/EmailCollection'
 import Results from './components/Results'
+import { captureUtmParams } from './utils/utm'
 
 function App() {
   const [stage, setStage] = useState('landing') // landing, about, contact, early-signs, science, questionnaire, test, email-collection, results
@@ -15,6 +16,11 @@ function App() {
   const [testResults, setTestResults] = useState(null)
   const [userEmail, setUserEmail] = useState('')
   const [isTransitioning, setIsTransitioning] = useState(false)
+
+  // Capture UTM parameters on initial load
+  useEffect(() => {
+    captureUtmParams()
+  }, [])
 
   const transitionToStage = (newStage) => {
     setIsTransitioning(true)
