@@ -39,8 +39,8 @@ function App() {
     setUserData(data)
     // Fire Facebook Pixel event when test starts
     if (window.fbq) {
-      window.fbq('trackCustom', 'started-test')
-      console.log('FB Pixel event: started-test')
+      window.fbq('trackCustom', 'started_test')
+      console.log('FB Pixel event: started_test')
     }
     transitionToStage('test')
   }
@@ -49,8 +49,8 @@ function App() {
     setTestResults(results)
     // Fire Facebook Pixel event when test finishes
     if (window.fbq) {
-      window.fbq('trackCustom', 'finished-test')
-      console.log('FB Pixel event: finished-test')
+      window.fbq('trackCustom', 'finished_test')
+      console.log('FB Pixel event: finished_test')
     }
     transitionToStage('email-collection')
   }
