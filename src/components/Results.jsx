@@ -101,7 +101,7 @@ export default function Results({ results, userData, onRestart }) {
     if ((leftLow < 0.5 || rightLow < 0.5) && (leftHigh > 0.8 && rightHigh > 0.8)) {
       patterns.push('Low-frequency hearing loss detected')
     }
-    if (Math.abs(leftScore - rightScore) > 20) {tion)
+    if (Math.abs(leftScore - rightScore) > 20) {
       patterns.push('Asymmetric hearing loss between ears')
     }
     if (leftLow > 0.8 && leftMid > 0.8 && leftHigh > 0.8 && rightLow > 0.8 && rightMid > 0.8 && rightHigh > 0.8) {
@@ -477,7 +477,17 @@ export default function Results({ results, userData, onRestart }) {
             </div>
             <div className="flex-1">
               <h3 className="text-2xl font-bold text-clinical-900 mb-2">Recommended Solution: Nova Hearing Aid</h3>
-              <p className="text-clinical-600">Based on your specific hearing profile, we recommend the Nova hearing aid system.</p>
+              <p className="text-clinical-600">
+                Based on your specific hearing profile, we recommend the{' '}
+                <a 
+                  href={appendUtmParams("https://heardirectclub.com/products/nova")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 hover:text-primary-700 underline font-semibold"
+                >
+                  Nova hearing aid system
+                </a>.
+              </p>
             </div>
           </div>
 

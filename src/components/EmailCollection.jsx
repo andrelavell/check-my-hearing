@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Mail, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { getUtmParams } from '../utils/utm'
 
 export default function EmailCollection({ onComplete }) {
   const [email, setEmail] = useState('')
@@ -28,27 +29,19 @@ export default function EmailCollection({ onComplete }) {
     setIsSubmitting(true)
 
     try {
-      // Subscribe to Klaviyo list
-      const response = await fetch('https://a.klaviyo.com/api/v2/list/Ux8B2j/subscribe?api_key=pk_d14e5f94f170353da89944c1ba38de9be0', {
+      // Subscribe via serverless function (uses PRIVATE key server-side)
+      const response = await fetch('/.netlify/functions/klaviyo-subscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          profiles: [
-            {
-              email: email,
-            }
-          ]
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, utm: getUtmParams() })
       })
 
       if (response.ok) {
-        // Success - proceed to results
         onComplete(email)
       } else {
-        // Even if Klaviyo fails, we should still show results
-        console.error('Klaviyo subscription failed, but proceeding to results')
+        const text = await response.text()
+        console.error('Klaviyo subscribe failed', response.status, text)
+        // Proceed anyway to results
         onComplete(email)
       }
     } catch (err) {
