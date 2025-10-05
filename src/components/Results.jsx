@@ -2,7 +2,7 @@ import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, Trend
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function Results({ results, userData, onRestart }) {
-  const { leftEar, rightEar, leftScore, rightScore, overallScore, calibration, detectionOffsetDb } = results
+  const { leftEar, rightEar, leftScore, rightScore, overallScore } = results
 
   // Prepare data for audiogram
   const frequencies = [250, 500, 1000, 2000, 4000, 8000]
@@ -29,7 +29,7 @@ export default function Results({ results, userData, onRestart }) {
   }
 
   // Calculate average threshold in dB HL for each ear
-  const calculateAverageThreshold = (earResults) => {
+  const calculateAverageThreshold = (earResults, earSide) => {
     const thresholds = earResults
       .filter(r => r.thresholdDb !== undefined)
       .map(r => Math.abs(r.thresholdDb)) // Convert to positive dB HL
@@ -41,11 +41,22 @@ export default function Results({ results, userData, onRestart }) {
       return Math.round(estimatedDb)
     }
     
-    return Math.round(thresholds.reduce((a, b) => a + b, 0) / thresholds.length)
+    // Calculate average threshold
+    const avgThreshold = Math.round(thresholds.reduce((a, b) => a + b, 0) / thresholds.length)
+    
+    // Adjust based on calibration baseline if available
+    if (results.calibrationBaseline && results.calibrationBaseline[earSide]) {
+      const baseline = Math.abs(results.calibrationBaseline[earSide])
+      // Normalize: if their baseline was higher (worse), adjust results accordingly
+      const adjustment = baseline - 40 // 40 dB is our standard reference
+      return Math.round(avgThreshold + adjustment)
+    }
+    
+    return avgThreshold
   }
 
-  const leftAvgDb = calculateAverageThreshold(leftEar)
-  const rightAvgDb = calculateAverageThreshold(rightEar)
+  const leftAvgDb = calculateAverageThreshold(leftEar, 'left')
+  const rightAvgDb = calculateAverageThreshold(rightEar, 'right')
   const overallAvgDb = Math.round((leftAvgDb + rightAvgDb) / 2)
 
   const leftClassification = classifyHearingLoss(leftAvgDb)
@@ -230,18 +241,6 @@ export default function Results({ results, userData, onRestart }) {
             </div>
           </div>
         </div>
-
-        {/* Calibration context */}
-        {calibration && (calibration.left !== null && calibration.right !== null) && (
-          <div className="bg-clinical-50 rounded-md p-4 mb-6 border border-clinical-200">
-            <div className="text-sm text-clinical-700">
-              <span className="font-semibold">Calibration applied:</span> Test was adjusted to your device. Baseline set at ~{Math.abs(calibration.left)} dB (left) and ~{Math.abs(calibration.right)} dB (right) at 1 kHz.
-              {typeof detectionOffsetDb === 'number' && (
-                <span> Detection tones were presented about +{detectionOffsetDb} dB above your baseline.</span>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Individual Ear Scores */}
         <div className="grid sm:grid-cols-2 gap-4 mb-6">
@@ -593,6 +592,13 @@ export default function Results({ results, userData, onRestart }) {
             <div className="flex items-start gap-3">
               <Award className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
               <div>
+                <div className="font-semibold text-clinical-900">Individualized Calibration</div>
+                <div>Per-ear baseline calibration to account for device and headphone variations</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Award className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+              <div>
                 <div className="font-semibold text-clinical-900">Mixed Methodology</div>
                 <div>Combination of detection tests (yes/no response) and threshold adjustment tests (method of limits)</div>
               </div>
@@ -605,6 +611,15 @@ export default function Results({ results, userData, onRestart }) {
               </div>
             </div>
           </div>
+          {results.calibrationBaseline && results.calibrationBaseline.left && results.calibrationBaseline.right && (
+            <div className="mt-4 p-3 bg-primary-50 rounded border border-primary-200">
+              <p className="text-xs text-primary-800">
+                <strong>Your Calibration:</strong> Left ear baseline: {Math.abs(results.calibrationBaseline.left)} dB | 
+                Right ear baseline: {Math.abs(results.calibrationBaseline.right)} dB. 
+                Results are normalized to your individual hearing threshold.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Disclaimer */}
