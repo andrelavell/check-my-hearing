@@ -674,14 +674,6 @@ export default function HearingTest({ userData, onComplete }) {
     )
   }
 
-  // Small bouncing coachmark shown above primary play buttons
-  const PlayCoachmark = ({ text = 'Tap Play' }) => (
-    <div className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none">
-      <div className="bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow animate-bounce">
-        {text}
-      </div>
-    </div>
-  )
 
   if (stage === 'intro') {
     return (
@@ -835,10 +827,14 @@ export default function HearingTest({ userData, onComplete }) {
                       ? 'bg-primary-50 border-primary-500 animate-pulse'
                       : 'bg-clinical-50 border-clinical-200'
                   }`}>
-                    <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2C8 2 4 5 4 10v4c0 2 1 3 2 3h2v-7c0-3 2-5 4-5s4 2 4 5v7h2c1 0 2-1 2-3v-4c0-5-4-8-8-8z"/>
-                      <path d="M8 14v5c0 1.5 1.5 3 4 3s4-1.5 4-3v-5"/>
-                    </svg>
+                    <img 
+                      src={currentEar === 'left' 
+                        ? "https://cdn.shopify.com/s/files/1/0939/7482/3208/files/left-ear.png?v=1759638067"
+                        : "https://cdn.shopify.com/s/files/1/0939/7482/3208/files/right-ear.png?v=1759638067"
+                      }
+                      alt={`${earLabel} ear`}
+                      className="w-12 h-12 object-contain"
+                    />
                   </div>
                   <span className="text-sm font-semibold text-clinical-900">
                     {earLabel} Ear
@@ -847,22 +843,28 @@ export default function HearingTest({ userData, onComplete }) {
               </div>
 
               {/* Adjustment Controls */}
-              <div className="flex justify-center items-center gap-6 mb-8">
-                <button
-                  onClick={handleCalibrationDecrease}
-                  disabled={calibrationDb <= MIN_DB}
-                  className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition-all ${
-                    calibrationDb <= MIN_DB
-                      ? 'bg-clinical-200 cursor-not-allowed'
-                      : 'bg-primary-600 hover:bg-primary-700'
-                  }`}
-                >
-                  <Minus className="w-8 h-8 text-white" />
-                  <span className="text-white text-xs font-semibold mt-1">Softer</span>
-                </button>
+              <div className="mb-8">
+                {!adjustmentPlaying && (
+                  <div className="text-center mb-3">
+                    <span className="inline-block bg-primary-100 text-primary-700 px-4 py-2 rounded-full text-sm font-semibold border border-primary-200">
+                      1. Press Play
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-center items-center gap-6">
+                  <button
+                    onClick={handleCalibrationDecrease}
+                    disabled={calibrationDb <= MIN_DB}
+                    className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition-all ${
+                      calibrationDb <= MIN_DB
+                        ? 'bg-clinical-200 cursor-not-allowed'
+                        : 'bg-primary-600 hover:bg-primary-700'
+                    }`}
+                  >
+                    <Minus className="w-8 h-8 text-white" />
+                    <span className="text-white text-xs font-semibold mt-1">Softer</span>
+                  </button>
 
-                <div className="relative">
-                  {!adjustmentPlaying && <PlayCoachmark text="Tap Play" />}
                   <button
                     onClick={() => toggleCalibrationTone(currentEar)}
                     aria-label={adjustmentPlaying ? 'Pause tone' : 'Play tone'}
@@ -870,7 +872,7 @@ export default function HearingTest({ userData, onComplete }) {
                       adjustmentPlaying
                         ? 'bg-primary-700'
                         : 'bg-primary-600 hover:bg-primary-700'
-                    } ${isPulsing ? 'ring-4 ring-primary-400' : ''} ${!adjustmentPlaying ? 'ring-4 ring-primary-300 animate-pulse' : ''}`}
+                    } ${isPulsing ? 'ring-4 ring-primary-400' : ''}`}
                   >
                     {adjustmentPlaying ? (
                       <>
@@ -884,20 +886,20 @@ export default function HearingTest({ userData, onComplete }) {
                       </>
                     )}
                   </button>
-                </div>
 
-                <button
-                  onClick={handleCalibrationIncrease}
-                  disabled={calibrationDb >= MAX_DB}
-                  className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition-all ${
-                    calibrationDb >= MAX_DB
-                      ? 'bg-clinical-200 cursor-not-allowed'
-                      : 'bg-primary-600 hover:bg-primary-700'
-                  }`}
-                >
-                  <Plus className="w-8 h-8 text-white" />
-                  <span className="text-white text-xs font-semibold mt-1">Louder</span>
-                </button>
+                  <button
+                    onClick={handleCalibrationIncrease}
+                    disabled={calibrationDb >= MAX_DB}
+                    className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition-all ${
+                      calibrationDb >= MAX_DB
+                        ? 'bg-clinical-200 cursor-not-allowed'
+                        : 'bg-primary-600 hover:bg-primary-700'
+                    }`}
+                  >
+                    <Plus className="w-8 h-8 text-white" />
+                    <span className="text-white text-xs font-semibold mt-1">Louder</span>
+                  </button>
+                </div>
               </div>
 
               {/* Max Volume Warning */}
@@ -1020,10 +1022,10 @@ export default function HearingTest({ userData, onComplete }) {
 
         {/* Milestone Toast */}
         {milestoneToast && (
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
-            <div className="bg-primary-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5" />
-              <span className="font-semibold">{milestoneToast}</span>
+          <div className="fixed top-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
+            <div className="bg-primary-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center justify-center gap-2 max-w-2xl mx-auto">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              <span className="font-semibold text-center">{milestoneToast}</span>
             </div>
           </div>
         )}
@@ -1088,10 +1090,11 @@ export default function HearingTest({ userData, onComplete }) {
                   ? 'bg-primary-50 border-primary-500 animate-pulse'
                   : 'bg-clinical-50 border-clinical-200'
               }`}>
-                <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2C8 2 4 5 4 10v4c0 2 1 3 2 3h2v-7c0-3 2-5 4-5s4 2 4 5v7h2c1 0 2-1 2-3v-4c0-5-4-8-8-8z"/>
-                  <path d="M8 14v5c0 1.5 1.5 3 4 3s4-1.5 4-3v-5"/>
-                </svg>
+                <img 
+                  src="https://cdn.shopify.com/s/files/1/0939/7482/3208/files/left-ear.png?v=1759638067" 
+                  alt="Left ear"
+                  className="w-10 h-10 object-contain"
+                />
               </div>
               <span className={`text-xs font-semibold ${currentTestData.ear === 'left' ? 'text-clinical-900' : 'text-clinical-400'}`}>
                 Left Ear
@@ -1104,10 +1107,11 @@ export default function HearingTest({ userData, onComplete }) {
                   ? 'bg-primary-50 border-primary-500 animate-pulse'
                   : 'bg-clinical-50 border-clinical-200'
               }`}>
-                <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2C8 2 4 5 4 10v4c0 2 1 3 2 3h2v-7c0-3 2-5 4-5s4 2 4 5v7h2c1 0 2-1 2-3v-4c0-5-4-8-8-8z"/>
-                  <path d="M8 14v5c0 1.5 1.5 3 4 3s4-1.5 4-3v-5"/>
-                </svg>
+                <img 
+                  src="https://cdn.shopify.com/s/files/1/0939/7482/3208/files/right-ear.png?v=1759638067" 
+                  alt="Right ear"
+                  className="w-10 h-10 object-contain"
+                />
               </div>
               <span className={`text-xs font-semibold ${currentTestData.ear === 'right' ? 'text-clinical-900' : 'text-clinical-400'}`}>
                 Right Ear
@@ -1136,7 +1140,6 @@ export default function HearingTest({ userData, onComplete }) {
                   </div>
                 </div>
               )}
-              {(!hasPlayedTone && !isPlaying) && <PlayCoachmark text="Tap Play" />}
               <button
                 onClick={handlePlayTone}
                 disabled={isPlaying || countdown !== null}
@@ -1168,9 +1171,7 @@ export default function HearingTest({ userData, onComplete }) {
                   <span className="text-white text-xs font-semibold mt-1">Softer</span>
                 </button>
 
-                <div className="relative">
-                  {(!hasPlayedTone && !adjustmentPlaying) && <PlayCoachmark text="Tap Play" />}
-                  <button
+                <button
                     onClick={toggleAdjustmentTone}
                     className={`w-28 h-28 rounded-md flex flex-col items-center justify-center transition-all ${
                       adjustmentPlaying
@@ -1190,7 +1191,6 @@ export default function HearingTest({ userData, onComplete }) {
                       </>
                     )}
                   </button>
-                </div>
 
                 <button
                   onClick={handleVolumeIncrease}
@@ -1244,64 +1244,62 @@ export default function HearingTest({ userData, onComplete }) {
             <div className="mb-6 text-center">
               <div className="inline-flex items-center gap-2 bg-primary-50 border border-primary-200 text-primary-700 px-4 py-2 rounded-full text-sm">
                 <Volume2 className="w-4 h-4 animate-pulse" />
-                <span className="font-medium">Ready for the next tone? Tap Play to continue</span>
+                <span className="font-medium">Ready for the next tone? Press Play to continue</span>
               </div>
             </div>
           )}
 
           {/* Response Buttons - Large Circular OR Next Button for Adjustment */}
           {!isAdjustmentTest ? (
-            <div className="flex justify-center gap-8 sm:gap-12">
-              <button
-                onClick={() => handleResponse(true)}
-                disabled={canHear !== null || !hasPlayedTone}
-                className={`flex flex-col items-center gap-3 transition-all ${
-                  canHear === true ? 'opacity-100' : !hasPlayedTone ? 'opacity-40 cursor-not-allowed' : 'opacity-70 hover:opacity-100'
-                }`}
-              >
-                <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-md border-4 flex items-center justify-center transition-all ${
-                  canHear === true
-                    ? 'border-primary-600 bg-primary-50 scale-110'
-                    : !hasPlayedTone
-                    ? 'border-clinical-200 bg-clinical-50'
-                    : 'border-clinical-300 bg-white hover:border-primary-500'
-                }`}>
-                  <Check className={`w-10 h-10 sm:w-12 sm:h-12 ${
-                    canHear === true ? 'text-primary-600' : !hasPlayedTone ? 'text-clinical-300' : 'text-clinical-400'
-                  }`} />
-                </div>
-                <span className={`font-bold text-base sm:text-lg ${
-                  canHear === true ? 'text-primary-600' : !hasPlayedTone ? 'text-clinical-400' : 'text-clinical-600'
-                }`}>
-                  YES, I HEARD IT
-                </span>
-              </button>
+            hasPlayedTone && (
+              <div className="flex justify-center gap-8 sm:gap-12">
+                <button
+                  onClick={() => handleResponse(true)}
+                  disabled={canHear !== null}
+                  className={`flex flex-col items-center gap-3 transition-all ${
+                    canHear === true ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-md border-4 flex items-center justify-center transition-all ${
+                    canHear === true
+                      ? 'border-primary-600 bg-primary-50 scale-110'
+                      : 'border-clinical-300 bg-white hover:border-primary-500'
+                  }`}>
+                    <Check className={`w-10 h-10 sm:w-12 sm:h-12 ${
+                      canHear === true ? 'text-primary-600' : 'text-clinical-400'
+                    }`} />
+                  </div>
+                  <span className={`font-bold text-base sm:text-lg ${
+                    canHear === true ? 'text-primary-600' : 'text-clinical-600'
+                  }`}>
+                    YES, I HEARD IT
+                  </span>
+                </button>
 
-              <button
-                onClick={() => handleResponse(false)}
-                disabled={canHear !== null || !hasPlayedTone}
-                className={`flex flex-col items-center gap-3 transition-all ${
-                  canHear === false ? 'opacity-100' : !hasPlayedTone ? 'opacity-40 cursor-not-allowed' : 'opacity-70 hover:opacity-100'
-                }`}
-              >
-                <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-md border-4 flex items-center justify-center transition-all ${
-                  canHear === false
-                    ? 'border-clinical-500 bg-clinical-50 scale-110'
-                    : !hasPlayedTone
-                    ? 'border-clinical-200 bg-clinical-50'
-                    : 'border-clinical-300 bg-white hover:border-clinical-500'
-                }`}>
-                  <X className={`w-10 h-10 sm:w-12 sm:h-12 ${
-                    canHear === false ? 'text-clinical-600' : !hasPlayedTone ? 'text-clinical-300' : 'text-clinical-400'
-                  }`} />
-                </div>
-                <span className={`font-bold text-base sm:text-lg ${
-                  canHear === false ? 'text-clinical-600' : !hasPlayedTone ? 'text-clinical-400' : 'text-clinical-600'
-                }`}>
-                  NO, I DIDN'T HEAR IT
-                </span>
-              </button>
-            </div>
+                <button
+                  onClick={() => handleResponse(false)}
+                  disabled={canHear !== null}
+                  className={`flex flex-col items-center gap-3 transition-all ${
+                    canHear === false ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-md border-4 flex items-center justify-center transition-all ${
+                    canHear === false
+                      ? 'border-clinical-500 bg-clinical-50 scale-110'
+                      : 'border-clinical-300 bg-white hover:border-clinical-500'
+                  }`}>
+                    <X className={`w-10 h-10 sm:w-12 sm:h-12 ${
+                      canHear === false ? 'text-clinical-600' : 'text-clinical-400'
+                    }`} />
+                  </div>
+                  <span className={`font-bold text-base sm:text-lg ${
+                    canHear === false ? 'text-clinical-600' : 'text-clinical-600'
+                  }`}>
+                    NO, I DIDN'T HEAR IT
+                  </span>
+                </button>
+              </div>
+            )
           ) : (
             <div className="flex justify-center">
               <button

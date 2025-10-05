@@ -67,8 +67,8 @@ export default function Results({ results, userData, onRestart }) {
   const getHearingStatus = (score) => {
     if (score >= 90) return { level: 'Excellent', color: 'green', description: 'Your hearing appears to be in excellent condition.' }
     if (score >= 75) return { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
-    if (score >= 60) return { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected. Consider a professional evaluation.' }
-    return { level: 'Needs Attention', color: 'red', description: 'Significant hearing concerns detected. We recommend seeing an audiologist.' }
+    if (score >= 60) return { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected.' }
+    return { level: 'Needs Attention', color: 'red', description: 'Significant hearing concerns detected.' }
   }
 
   const status = getHearingStatus(overallScore)
@@ -521,9 +521,9 @@ export default function Results({ results, userData, onRestart }) {
         </div>
 
         {/* Nova Hearing Aid Recommendation */}
-        <div className="glass p-6 sm:p-8 mb-6 border-2 border-primary-200">
+        <div className="glass p-6 sm:p-8 mb-6 border-2 border-primary-500 sm:border-primary-200 shadow-lg sm:shadow-none">
           <div className="flex items-start gap-4 mb-6">
-            <div className="w-14 h-14 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="hidden sm:flex w-14 h-14 bg-primary-600 rounded-lg items-center justify-center flex-shrink-0">
               <Volume2 className="w-8 h-8 text-white" />
             </div>
             <div className="flex-1">
