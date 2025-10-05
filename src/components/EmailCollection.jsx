@@ -37,16 +37,29 @@ export default function EmailCollection({ onComplete }) {
       })
 
       if (response.ok) {
+        // Fire Facebook Pixel event for email submission
+        if (window.fbq) {
+          window.fbq('trackCustom', 'email-submit')
+          console.log('FB Pixel event: email-submit')
+        }
         onComplete(email)
       } else {
         const text = await response.text()
         console.error('Klaviyo subscribe failed', response.status, text)
         // Proceed anyway to results
+        if (window.fbq) {
+          window.fbq('trackCustom', 'email-submit')
+          console.log('FB Pixel event: email-submit')
+        }
         onComplete(email)
       }
     } catch (err) {
       console.error('Error subscribing to Klaviyo:', err)
       // Still proceed to results even if there's an error
+      if (window.fbq) {
+        window.fbq('trackCustom', 'email-submit')
+        console.log('FB Pixel event: email-submit')
+      }
       onComplete(email)
     }
   }
