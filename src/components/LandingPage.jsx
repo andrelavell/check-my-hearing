@@ -109,22 +109,21 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
       <div className="bg-white border-b border-gray-200">
         <div className="container-safe py-3">
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm sm:text-base">
-            <span className="font-semibold text-clinical-900">The Most Trusted Online Test by Audiologists</span>
-            <span className="text-clinical-600">•</span>
+            <span className="font-semibold text-clinical-900 w-full sm:w-auto text-center text-base sm:text-lg">The Most Trusted Online Test by Audiologists</span>
+            <span className="text-clinical-600 hidden sm:inline">•</span>
             <div className="flex items-center gap-1">
               <span className="font-bold text-clinical-900">{STATS.averageRating}/5</span>
               <div className="flex gap-0.5 ml-1">
                 {[...Array(5)].map((_, i) => (
                   <Star 
                     key={i} 
-                    className={`w-4 h-4 ${i < 4 ? 'fill-yellow-400 text-yellow-400' : 'fill-yellow-400 text-yellow-400'}`}
-                    style={i === 4 ? { clipPath: 'inset(0 20% 0 0)' } : {}}
+                    className="w-4 h-4 fill-yellow-400 text-yellow-400"
                   />
                 ))}
               </div>
             </div>
             <span className="text-clinical-600 hidden sm:inline">•</span>
-            <span className="text-clinical-600 text-xs sm:text-sm">Clinical-Grade 3-Minute Test</span>
+            <span className="text-clinical-600 text-xs sm:text-lg">Clinical-Grade 3-Minute Test</span>
           </div>
         </div>
       </div>
@@ -155,7 +154,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
               </p>
               <button
                 onClick={onStart}
-                className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 rounded-full transition-colors duration-200 w-full sm:w-auto"
+                className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 sm:px-8 sm:py-4 sm:text-lg rounded-full transition-colors duration-200 w-full sm:w-auto"
               >
                 Begin Hearing Test
               </button>

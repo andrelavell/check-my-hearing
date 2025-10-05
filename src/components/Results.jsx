@@ -101,8 +101,8 @@ export default function Results({ results, userData, onRestart }) {
     if ((leftLow < 0.5 || rightLow < 0.5) && (leftHigh > 0.8 && rightHigh > 0.8)) {
       patterns.push('Low-frequency hearing loss detected')
     }
-    if (Math.abs(leftScore - rightScore) > 20) {
-      patterns.push('Asymmetric hearing loss between ears (recommend professional evaluation)')
+    if (Math.abs(leftScore - rightScore) > 20) {tion)
+      patterns.push('Asymmetric hearing loss between ears')
     }
     if (leftLow > 0.8 && leftMid > 0.8 && leftHigh > 0.8 && rightLow > 0.8 && rightMid > 0.8 && rightHigh > 0.8) {
       patterns.push('Bilateral normal hearing across all frequencies')
@@ -125,19 +125,19 @@ export default function Results({ results, userData, onRestart }) {
     
     if (leftHigh < 0.8 || rightHigh < 0.8) {
       reasons.push('Your assessment shows reduced sensitivity in high frequencies (4-8 kHz), which are critical for understanding speech clarity, especially consonants like "s," "f," and "th."')
-      features.push('Advanced high-frequency amplification technology specifically designed to restore clarity in speech-critical frequencies')
+      features.push('Restores the high-frequency sounds you\'re missing, so you can hear conversations clearly again')
     }
     
     // Check for mild to moderate hearing loss
     if (overallAvgDb >= 26 && overallAvgDb <= 55) {
       reasons.push(`Your average hearing threshold of ${overallAvgDb} dB HL indicates ${overallClassification.level.toLowerCase()} hearing loss, which can benefit significantly from amplification.`)
-      features.push('Precisely calibrated gain settings optimized for mild to moderate hearing loss profiles')
+      features.push('Calibrated specifically for your level of hearing loss to give you the exact amplification you need')
     }
     
     // Check for asymmetric hearing
     if (Math.abs(leftScore - rightScore) > 15) {
       reasons.push('Your results show different hearing levels between ears, requiring independent adjustment for optimal balance.')
-      features.push('Dual independent processors that can be programmed separately for each ear')
+      features.push('Adjusts independently for each of your ears since they have different hearing levels')
     }
     
     // Check mid-frequency issues (speech range)
@@ -147,16 +147,16 @@ export default function Results({ results, userData, onRestart }) {
     
     if (leftMid < 0.9 || rightMid < 0.9) {
       reasons.push('Your mid-frequency response (1-2 kHz) shows areas for improvement. This range is essential for understanding vowel sounds and overall speech intelligibility.')
-      features.push('Multi-channel processing that targets specific frequency bands where you need the most support')
+      features.push('Targets the exact frequency ranges where your hearing needs the most help')
     }
     
     // Default recommendations if hearing is good
     if (overallScore >= 90) {
       reasons.push('While your hearing is currently in excellent condition, the Nova can help you maintain clarity in challenging listening environments.')
-      features.push('Noise reduction technology for better hearing in restaurants, meetings, and crowded spaces')
+      features.push('Helps you hear clearly even in noisy restaurants, meetings, and crowded spaces')
     } else if (overallScore >= 75) {
       reasons.push('Your hearing assessment indicates early changes that could benefit from assistive technology to prevent communication difficulties.')
-      features.push('Adaptive sound processing that automatically adjusts to different listening environments')
+      features.push('Automatically adjusts as you move between quiet and noisy environments throughout your day')
     }
     
     // Universal features
@@ -194,9 +194,11 @@ export default function Results({ results, userData, onRestart }) {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Headphones className="w-8 h-8 text-primary-600" />
-            <span className="text-xl font-bold text-clinical-900">HearWell</span>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary-500 rounded-md flex items-center justify-center">
+              <Headphones className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-clinical-900 mb-2">
             Hearing Assessment Results
@@ -465,60 +467,6 @@ export default function Results({ results, userData, onRestart }) {
               Normal: 0-25 dB HL | Mild: 26-40 dB HL | Moderate: 41-55 dB HL | Moderately Severe: 56-70 dB HL
             </p>
           </div>
-        </div>
-
-        {/* Recommendations */}
-        <div className="glass p-6 mb-6">
-          <h3 className="text-xl font-bold text-clinical-900 mb-4">Clinical Recommendations</h3>
-          
-          <ul className="space-y-3 text-gray-700">
-            {overallScore >= 90 ? (
-              <>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>Maintain hearing health through noise exposure management</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>Annual audiometric screening recommended</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span>Use ear protection in loud environments</span>
-                </li>
-              </>
-            ) : overallScore >= 75 ? (
-              <>
-                <li className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span>Monitor your hearing every 6-12 months</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span>Be mindful of exposure to loud sounds</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span>Consider a professional evaluation if you notice changes</span>
-                </li>
-              </>
-            ) : (
-              <>
-                <li className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                  <span><strong>Schedule an appointment with an audiologist</strong> for a comprehensive evaluation</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                  <span>Avoid loud environments when possible</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                  <span>Discuss hearing aid options with a professional</span>
-                </li>
-              </>
-            )}
-          </ul>
         </div>
 
         {/* Nova Hearing Aid Recommendation */}
