@@ -6,12 +6,14 @@ import EarlySigns from './components/EarlySigns'
 import ScientificValidation from './components/ScientificValidation'
 import Questionnaire from './components/Questionnaire'
 import HearingTest from './components/HearingTest'
+import EmailCollection from './components/EmailCollection'
 import Results from './components/Results'
 
 function App() {
-  const [stage, setStage] = useState('landing') // landing, about, contact, early-signs, science, questionnaire, test, results
+  const [stage, setStage] = useState('landing') // landing, about, contact, early-signs, science, questionnaire, test, email-collection, results
   const [userData, setUserData] = useState({})
   const [testResults, setTestResults] = useState(null)
+  const [userEmail, setUserEmail] = useState('')
   const [isTransitioning, setIsTransitioning] = useState(false)
 
   const transitionToStage = (newStage) => {
@@ -34,12 +36,18 @@ function App() {
 
   const handleTestComplete = (results) => {
     setTestResults(results)
+    transitionToStage('email-collection')
+  }
+
+  const handleEmailComplete = (email) => {
+    setUserEmail(email)
     transitionToStage('results')
   }
 
   const handleRestart = () => {
     setUserData({})
     setTestResults(null)
+    setUserEmail('')
     transitionToStage('landing')
   }
 
@@ -73,7 +81,8 @@ function App() {
         {stage === 'science' && <ScientificValidation onBack={handleBackToHome} />}
         {stage === 'questionnaire' && <Questionnaire onComplete={handleQuestionnaireComplete} />}
         {stage === 'test' && <HearingTest userData={userData} onComplete={handleTestComplete} />}
-        {stage === 'results' && <Results results={testResults} userData={userData} onRestart={handleRestart} />}
+        {stage === 'email-collection' && <EmailCollection onComplete={handleEmailComplete} />}
+        {stage === 'results' && <Results results={testResults} userData={userData} userEmail={userEmail} onRestart={handleRestart} />}
       </div>
     </div>
   )
