@@ -16,10 +16,10 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
       <header className="sticky top-0 z-30 bg-white w-full px-6 sm:px-8 lg:px-12 py-5 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-500 rounded-md flex items-center justify-center">
-              <Headphones className="w-6 h-6 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary-500 rounded-md flex items-center justify-center">
+              <Headphones className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
+            <span className="text-lg sm:text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           
           {/* Desktop Navigation */}
@@ -157,8 +157,11 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
                 onClick={onStart}
                 className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 rounded-full transition-colors duration-200 w-full sm:w-auto"
               >
-                Begin Clinical Assessment
+                Begin Hearing Test
               </button>
+              <p className="text-primary-700 text-sm mt-3">
+                Instant results. No credit card required.
+              </p>
             </div>
           </div>
         </div>

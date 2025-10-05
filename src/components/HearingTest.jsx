@@ -715,8 +715,11 @@ export default function HearingTest({ userData, onComplete }) {
               onClick={startTest}
               className="w-full btn-primary py-4"
             >
-              Begin Clinical Assessment
+              Begin Hearing Test
             </button>
+            <p className="text-clinical-600 text-sm mt-3 text-center">
+              Instant results. No credit card required.
+            </p>
           </div>
         </div>
       </div>
