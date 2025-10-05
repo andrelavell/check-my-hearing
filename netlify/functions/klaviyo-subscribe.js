@@ -32,33 +32,61 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Server not configured' }) }
     }
 
-    // v2 List Subscribe endpoint (server-side only). Using private key.
-    const url = `https://a.klaviyo.com/api/v2/list/${encodeURIComponent(KLAVIYO_LIST_ID)}/subscribe?api_key=${encodeURIComponent(KLAVIYO_PRIVATE_KEY)}`
+    // Use new Klaviyo API: profile-subscription-bulk-create-jobs
+    const url = 'https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs/'
+    const headers = {
+      'Authorization': `Klaviyo-API-Key ${KLAVIYO_PRIVATE_KEY}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'revision': '2023-10-15',
+    }
 
-    const profiles = [
-      {
-        email,
-        consent: ['email'],
-        source: 'Hearing Test',
-        properties: {
-          ...(utm || {}),
+    const payload = {
+      data: {
+        type: 'profile-subscription-bulk-create-job',
+        attributes: {
+          profiles: {
+            data: [
+              {
+                type: 'profile',
+                attributes: {
+                  email,
+                  properties: { ...(utm || {}) },
+                  subscriptions: {
+                    email: {
+                      marketing: {
+                        consent: 'SUBSCRIBED',
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        relationships: {
+          list: {
+            data: {
+              type: 'list',
+              id: KLAVIYO_LIST_ID,
+            },
+          },
         },
       },
-    ]
+    }
 
     const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profiles }),
+      headers,
+      body: JSON.stringify(payload),
     })
 
     const text = await resp.text()
-
     if (!resp.ok) {
       return {
         statusCode: resp.status,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Klaviyo error', status: resp.status, response: text }),
+        body: JSON.stringify({ error: 'Klaviyo subscribe failed', status: resp.status, response: text }),
       }
     }
 

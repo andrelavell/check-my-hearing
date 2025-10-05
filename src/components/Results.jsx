@@ -348,6 +348,7 @@ export default function Results({ results, userData, onRestart }) {
                   dataKey="left" 
                   stroke="#005A8E" 
                   strokeWidth={2}
+                  strokeDasharray="5 5"
                   name="Left Ear"
                   dot={{ fill: '#005A8E', r: 5 }}
                 />
