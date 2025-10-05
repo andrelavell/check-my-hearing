@@ -2,7 +2,7 @@ import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, Trend
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function Results({ results, userData, onRestart }) {
-  const { leftEar, rightEar, leftScore, rightScore, overallScore } = results
+  const { leftEar, rightEar, leftScore, rightScore, overallScore, calibration, detectionOffsetDb } = results
 
   // Prepare data for audiogram
   const frequencies = [250, 500, 1000, 2000, 4000, 8000]
@@ -230,6 +230,18 @@ export default function Results({ results, userData, onRestart }) {
             </div>
           </div>
         </div>
+
+        {/* Calibration context */}
+        {calibration && (calibration.left !== null && calibration.right !== null) && (
+          <div className="bg-clinical-50 rounded-md p-4 mb-6 border border-clinical-200">
+            <div className="text-sm text-clinical-700">
+              <span className="font-semibold">Calibration applied:</span> Test was adjusted to your device. Baseline set at ~{Math.abs(calibration.left)} dB (left) and ~{Math.abs(calibration.right)} dB (right) at 1 kHz.
+              {typeof detectionOffsetDb === 'number' && (
+                <span> Detection tones were presented about +{detectionOffsetDb} dB above your baseline.</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Individual Ear Scores */}
         <div className="grid sm:grid-cols-2 gap-4 mb-6">

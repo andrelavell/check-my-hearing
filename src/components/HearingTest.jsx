@@ -24,6 +24,7 @@ const INACTIVITY_THRESHOLD = 12000 // 12 seconds
 const MIN_DB = -60 // minimum dB level
 const MAX_DB = -10 // maximum safe dB level
 const INITIAL_DB = -40 // starting dB level for adjustment tests
+const DETECTION_OFFSET_DB = 10 // dB above calibrated threshold for detection tones
 
 export default function HearingTest({ userData, onComplete }) {
   const [stage, setStage] = useState('intro') // intro, calibration, preparing, testing, processing
@@ -44,6 +45,11 @@ export default function HearingTest({ userData, onComplete }) {
   const [adjustmentDb, setAdjustmentDb] = useState(INITIAL_DB)
   const [adjustmentPlaying, setAdjustmentPlaying] = useState(false)
   const [showMaxVolumeWarning, setShowMaxVolumeWarning] = useState(false)
+  // Calibration state
+  const [calibration, setCalibration] = useState({ left: null, right: null })
+  const [calibrationStep, setCalibrationStep] = useState('left') // 'left' -> 'right'
+  const [calibrationDb, setCalibrationDb] = useState(INITIAL_DB)
+  const [calibrationPlaying, setCalibrationPlaying] = useState(false)
   
   const audioContextRef = useRef(null)
   const oscillatorRef = useRef(null)
@@ -52,6 +58,20 @@ export default function HearingTest({ userData, onComplete }) {
   const lastActivityRef = useRef(Date.now())
   const adjustmentOscillatorRef = useRef(null)
   const adjustmentGainRef = useRef(null)
+
+  // Helpers for calibration-aware playback
+  const getEarCalibrationDb = (ear) => {
+    if (!ear) return INITIAL_DB
+    const val = calibration[ear]
+    return typeof val === 'number' ? val : INITIAL_DB
+  }
+
+  const clampDb = (db) => Math.max(MIN_DB, Math.min(MAX_DB, db))
+
+  const getDetectionDbForEar = (ear) => {
+    const base = getEarCalibrationDb(ear)
+    return clampDb(base + DETECTION_OFFSET_DB)
+  }
 
   // Check for saved progress on mount
   useEffect(() => {
@@ -132,6 +152,14 @@ export default function HearingTest({ userData, onComplete }) {
     }
   }, [])
 
+  // When moving between tests, seed adjustment level from calibration for adjustment tests
+  useEffect(() => {
+    const test = testFrequencies[currentTest]
+    if (test && test.type === 'adjustment') {
+      setAdjustmentDb(getEarCalibrationDb(test.ear))
+    }
+  }, [currentTest])
+
   const playTone = (frequency, duration = 1500, earSide = null) => {
     if (!audioContextRef.current) return
 
@@ -153,11 +181,16 @@ export default function HearingTest({ userData, onComplete }) {
     oscillator.type = 'sine'
     oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime)
     
-    // Fade in/out envelope for smoother sound
+    // Fade in/out envelope for smoother sound, using calibration-aware target gain for detection tones
     const now = audioContextRef.current.currentTime
+    const currentData = testFrequencies[currentTest]
+    const ear = earSide || currentData.ear
+    // If we're in a detection test, present at calibrated threshold + offset. Otherwise fall back to volumeLevel.
+    const isDetection = currentData && currentData.type === 'detection'
+    const targetGain = isDetection ? dbToGain(getDetectionDbForEar(ear)) : volumeLevel
     envelope.gain.setValueAtTime(0, now)
-    envelope.gain.linearRampToValueAtTime(volumeLevel, now + 0.1) // 100ms fade in
-    envelope.gain.setValueAtTime(volumeLevel, now + duration / 1000 - 0.1)
+    envelope.gain.linearRampToValueAtTime(targetGain, now + 0.1) // 100ms fade in
+    envelope.gain.setValueAtTime(targetGain, now + duration / 1000 - 0.1)
     envelope.gain.linearRampToValueAtTime(0, now + duration / 1000) // 100ms fade out
     
     oscillator.connect(envelope)
@@ -307,6 +340,7 @@ export default function HearingTest({ userData, onComplete }) {
     setIsTransitioning(true)
 
     const nextTest = currentTest + 1
+    const nextTestData = testFrequencies[nextTest]
     if (nextTest === 6) {
       showMilestone('Left ear complete — Halfway done!')
     } else if (nextTest === 11) {
@@ -323,7 +357,12 @@ export default function HearingTest({ userData, onComplete }) {
         setIsPlaying(false)
         setHasPlayedTone(false)
         setShowWarning(false)
-        setAdjustmentDb(INITIAL_DB)
+        // Seed next adjustment test with ear-specific calibrated baseline
+        if (nextTestData && nextTestData.type === 'adjustment') {
+          setAdjustmentDb(getEarCalibrationDb(nextTestData.ear))
+        } else {
+          setAdjustmentDb(INITIAL_DB)
+        }
         setShowMaxVolumeWarning(false)
       } else {
         finishTest(newResults)
@@ -354,15 +393,92 @@ export default function HearingTest({ userData, onComplete }) {
     }, 400)
   }
 
-  const playCalibrationTone = () => {
-    setIsPlaying(true)
-    playTone(1000, 2000, 'left')
-    setTimeout(() => {
-      playTone(1000, 2000, 'right')
-    }, 2500)
-    setTimeout(() => {
-      setIsPlaying(false)
-    }, 5000)
+  // Calibration tone controls (per ear, continuous tone)
+  const startCalibrationTone = (earSide) => {
+    if (!audioContextRef.current) return
+
+    stopAdjustmentTone()
+
+    const oscillator = audioContextRef.current.createOscillator()
+    const panner = audioContextRef.current.createStereoPanner()
+    const envelope = audioContextRef.current.createGain()
+
+    panner.pan.value = earSide === 'left' ? -1 : 1
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(1000, audioContextRef.current.currentTime)
+
+    const gain = dbToGain(calibrationDb)
+    const now = audioContextRef.current.currentTime
+    envelope.gain.setValueAtTime(0, now)
+    envelope.gain.linearRampToValueAtTime(gain, now + 0.1)
+
+    oscillator.connect(envelope)
+    envelope.connect(panner)
+    panner.connect(gainNodeRef.current.destination || gainNodeRef.current)
+
+    oscillator.start(now)
+    adjustmentOscillatorRef.current = oscillator
+    adjustmentGainRef.current = envelope
+    setCalibrationPlaying(true)
+    setIsPulsing(true)
+  }
+
+  const toggleCalibrationTone = () => {
+    if (calibrationPlaying) {
+      stopAdjustmentTone()
+      setCalibrationPlaying(false)
+      setIsPulsing(false)
+    } else {
+      startCalibrationTone(calibrationStep)
+    }
+  }
+
+  const updateCalibrationVolume = (newDb) => {
+    if (adjustmentGainRef.current && audioContextRef.current) {
+      const gain = dbToGain(newDb)
+      const now = audioContextRef.current.currentTime
+      adjustmentGainRef.current.gain.linearRampToValueAtTime(gain, now + 0.05)
+    }
+  }
+
+  const handleCalibrationIncrease = () => {
+    const newDb = Math.min(calibrationDb + 5, MAX_DB)
+    if (newDb >= MAX_DB) {
+      setShowMaxVolumeWarning(true)
+      setTimeout(() => setShowMaxVolumeWarning(false), 2000)
+    }
+    setCalibrationDb(newDb)
+    updateCalibrationVolume(newDb)
+    lastActivityRef.current = Date.now()
+  }
+
+  const handleCalibrationDecrease = () => {
+    const newDb = Math.max(calibrationDb - 5, MIN_DB)
+    setCalibrationDb(newDb)
+    updateCalibrationVolume(newDb)
+    setShowMaxVolumeWarning(false)
+    lastActivityRef.current = Date.now()
+  }
+
+  const saveCalibrationStep = () => {
+    // Must have played at least once to save
+    if (!adjustmentOscillatorRef.current) {
+      setShowWarning(true)
+      return
+    }
+    stopAdjustmentTone()
+    setCalibrationPlaying(false)
+    setIsPulsing(false)
+    const next = calibrationStep === 'left' ? 'right' : 'done'
+    setCalibration((prev) => ({ ...prev, [calibrationStep]: calibrationDb }))
+    if (next === 'right') {
+      setCalibrationStep('right')
+      // reset slider to baseline for the other ear
+      setCalibrationDb(INITIAL_DB)
+      setShowWarning(false)
+    } else {
+      setCalibrationStep('done')
+    }
   }
 
   const handleResponse = (heard) => {
@@ -375,12 +491,13 @@ export default function HearingTest({ userData, onComplete }) {
     lastActivityRef.current = Date.now()
     
     const test = testFrequencies[currentTest]
+    const presentedDb = getDetectionDbForEar(test.ear)
     const result = {
       frequency: test.freq,
       ear: test.ear,
       heard: heard,
-      volume: volumeLevel,
-      threshold: heard ? volumeLevel : null,
+      volume: dbToGain(presentedDb),
+      threshold: heard ? dbToGain(presentedDb) : null,
       testType: 'detection'
     }
     
@@ -437,6 +554,8 @@ export default function HearingTest({ userData, onComplete }) {
         leftScore,
         rightScore,
         overallScore,
+        calibration,
+        detectionOffsetDb: DETECTION_OFFSET_DB,
         timestamp: new Date().toISOString()
       })
     }, 2000)
@@ -452,6 +571,8 @@ export default function HearingTest({ userData, onComplete }) {
   }
 
   const startActualTest = () => {
+    // Require both ears calibrated before proceeding
+    if (calibration.left === null || calibration.right === null) return
     setStage('preparing')
     setTimeout(() => {
       setStage('testing')
@@ -650,42 +771,97 @@ export default function HearingTest({ userData, onComplete }) {
                 Audio Calibration
               </h2>
               <p className="text-clinical-600 mb-6">
-                Calibrate audio output levels for standardized testing conditions.
+                Set the tone to the softest level you can just barely hear. Keep your system volume unchanged afterward.
               </p>
             </div>
 
             <div className="bg-clinical-50 rounded-md p-6 mb-6 border border-clinical-200">
-              <h3 className="font-bold text-clinical-900 mb-3">Calibration Instructions:</h3>
+              <h3 className="font-bold text-clinical-900 mb-3">Before you begin:</h3>
               <ul className="space-y-2 text-clinical-700 text-sm">
-                <li>• Activate test tone via button below</li>
-                <li>• Binaural presentation: left ear, then right ear</li>
-                <li>• Tone should be audible but comfortable</li>
-                <li>• Adjust device volume as necessary</li>
+                <li>• Use headphones in a quiet room</li>
+                <li>• Set your device volume to ~50–70% and leave it there</li>
+                <li>• We will calibrate each ear at 1 kHz</li>
               </ul>
             </div>
 
-            <div className="flex justify-center mb-6">
-              <button
-                onClick={playCalibrationTone}
-                disabled={isPlaying}
-                className={`w-32 h-32 rounded-md flex flex-col items-center justify-center transition-all ${
-                  isPlaying
-                    ? 'bg-primary-400 cursor-not-allowed'
-                    : 'bg-primary-600 hover:bg-primary-700'
-                }`}
-              >
-                <Volume2 className={`w-12 h-12 text-white mb-2 ${isPulsing ? 'animate-pulse' : ''}`} />
-                <span className="text-white text-sm font-semibold">
-                  {isPlaying ? 'Playing...' : 'Test Tone'}
+            {/* Per-ear calibration controls */}
+            <div className="mb-6">
+              <div className="text-center mb-4">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200">
+                  {calibrationStep === 'left' ? 'Calibrating Left Ear' : calibration.left !== null && calibrationStep === 'right' ? 'Calibrating Right Ear' : 'Calibration Complete'}
                 </span>
-              </button>
+              </div>
+
+              {calibrationStep !== 'done' && (
+                <div className="flex justify-center items-center gap-6">
+                  <button
+                    onClick={handleCalibrationDecrease}
+                    className={`w-24 h-24 rounded-full flex flex-col items-center justify-center transition-all ${
+                      calibrationDb <= MIN_DB
+                        ? 'bg-clinical-200 cursor-not-allowed'
+                        : 'bg-primary-600 hover:bg-primary-700'
+                    }`}
+                    disabled={calibrationDb <= MIN_DB}
+                  >
+                    <Minus className="w-10 h-10 text-white" />
+                    <span className="text-white text-xs font-semibold mt-1">Softer</span>
+                  </button>
+
+                  <button
+                    onClick={toggleCalibrationTone}
+                    className={`w-28 h-28 rounded-md flex items-center justify-center transition-all ${
+                      calibrationPlaying ? 'bg-primary-700' : 'bg-primary-600 hover:bg-primary-700'
+                    } ${isPulsing ? 'ring-4 ring-primary-400' : ''}`}
+                  >
+                    {calibrationPlaying ? (
+                      <Pause className="w-12 h-12 text-white" />
+                    ) : (
+                      <Play className="w-12 h-12 text-white" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleCalibrationIncrease}
+                    className={`w-24 h-24 rounded-full flex flex-col items-center justify-center transition-all ${
+                      calibrationDb >= MAX_DB
+                        ? 'bg-clinical-200 cursor-not-allowed'
+                        : 'bg-primary-600 hover:bg-primary-700'
+                    }`}
+                    disabled={calibrationDb >= MAX_DB}
+                  >
+                    <Plus className="w-10 h-10 text-white" />
+                    <span className="text-white text-xs font-semibold mt-1">Louder</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Save/Next */}
+              {calibrationStep !== 'done' && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={saveCalibrationStep}
+                    className={`btn-primary px-10 py-3 ${!calibrationPlaying && !adjustmentOscillatorRef.current ? 'opacity-80' : ''}`}
+                  >
+                    Save {calibrationStep === 'left' ? 'Left' : 'Right'} Ear
+                  </button>
+                </div>
+              )}
+
+              {/* After both ears */}
+              {calibrationStep === 'done' && (
+                <div className="bg-primary-50 border border-primary-200 rounded-md p-4 text-primary-800 text-sm">
+                  <p className="font-semibold mb-1">Calibration saved</p>
+                  <p>Keep your system volume unchanged during the test. If you change it, return here to recalibrate.</p>
+                </div>
+              )}
             </div>
 
             <button
               onClick={startActualTest}
-              className="w-full btn-primary py-4"
+              className={`w-full btn-primary py-4 ${calibration.left === null || calibration.right === null ? 'opacity-40 cursor-not-allowed' : ''}`}
+              disabled={calibration.left === null || calibration.right === null}
             >
-              Calibration Complete - Continue
+              Begin Assessment
             </button>
           </div>
         </div>
