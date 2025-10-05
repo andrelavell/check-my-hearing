@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, TrendingDown, TrendingUp, Minus } from 'lucide-react'
+import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, TrendingDown, TrendingUp, Minus, ExternalLink, Volume2 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function Results({ results, userData, onRestart }) {
@@ -100,6 +100,62 @@ export default function Results({ results, userData, onRestart }) {
   }
 
   const frequencyPatterns = analyzeFrequencyPattern()
+
+  // Generate personalized Nova hearing aid recommendation
+  const generateNovaRecommendation = () => {
+    const reasons = []
+    const features = []
+    
+    // Analyze high-frequency loss (common pattern)
+    const highFreq = [4000, 8000]
+    const leftHigh = highFreq.map(f => leftEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / highFreq.length
+    const rightHigh = highFreq.map(f => rightEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / highFreq.length
+    
+    if (leftHigh < 0.8 || rightHigh < 0.8) {
+      reasons.push('Your assessment shows reduced sensitivity in high frequencies (4-8 kHz), which are critical for understanding speech clarity, especially consonants like "s," "f," and "th."')
+      features.push('Advanced high-frequency amplification technology specifically designed to restore clarity in speech-critical frequencies')
+    }
+    
+    // Check for mild to moderate hearing loss
+    if (overallAvgDb >= 26 && overallAvgDb <= 55) {
+      reasons.push(`Your average hearing threshold of ${overallAvgDb} dB HL indicates ${overallClassification.level.toLowerCase()} hearing loss, which can benefit significantly from amplification.`)
+      features.push('Precisely calibrated gain settings optimized for mild to moderate hearing loss profiles')
+    }
+    
+    // Check for asymmetric hearing
+    if (Math.abs(leftScore - rightScore) > 15) {
+      reasons.push('Your results show different hearing levels between ears, requiring independent adjustment for optimal balance.')
+      features.push('Dual independent processors that can be programmed separately for each ear')
+    }
+    
+    // Check mid-frequency issues (speech range)
+    const midFreq = [1000, 2000]
+    const leftMid = midFreq.map(f => leftEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / midFreq.length
+    const rightMid = midFreq.map(f => rightEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / midFreq.length
+    
+    if (leftMid < 0.9 || rightMid < 0.9) {
+      reasons.push('Your mid-frequency response (1-2 kHz) shows areas for improvement. This range is essential for understanding vowel sounds and overall speech intelligibility.')
+      features.push('Multi-channel processing that targets specific frequency bands where you need the most support')
+    }
+    
+    // Default recommendations if hearing is good
+    if (overallScore >= 90) {
+      reasons.push('While your hearing is currently in excellent condition, the Nova can help you maintain clarity in challenging listening environments.')
+      features.push('Noise reduction technology for better hearing in restaurants, meetings, and crowded spaces')
+    } else if (overallScore >= 75) {
+      reasons.push('Your hearing assessment indicates early changes that could benefit from assistive technology to prevent communication difficulties.')
+      features.push('Adaptive sound processing that automatically adjusts to different listening environments')
+    }
+    
+    // Universal features
+    features.push('Rechargeable battery system - no need to constantly buy and replace tiny batteries')
+    features.push('Discreet, comfortable design that fits naturally behind the ear')
+    features.push('FDA-registered hearing aid with clinical-grade sound quality')
+    
+    return { reasons, features }
+  }
+
+  const novaRecommendation = generateNovaRecommendation()
 
   const getColorClasses = (color) => {
     const colors = {
@@ -451,6 +507,64 @@ export default function Results({ results, userData, onRestart }) {
               </>
             )}
           </ul>
+        </div>
+
+        {/* Nova Hearing Aid Recommendation */}
+        <div className="glass p-6 sm:p-8 mb-6 border-2 border-primary-200">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-14 h-14 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Volume2 className="w-8 h-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold text-clinical-900 mb-2">Recommended Solution: Nova Hearing Aid</h3>
+              <p className="text-clinical-600">Based on your specific hearing profile, we recommend the Nova hearing aid system.</p>
+            </div>
+          </div>
+
+          {/* Why Nova is Recommended for Your Profile */}
+          <div className="mb-6">
+            <h4 className="font-bold text-clinical-900 mb-3 text-lg">Why Nova Matches Your Hearing Profile:</h4>
+            <div className="space-y-3">
+              {novaRecommendation.reasons.map((reason, idx) => (
+                <div key={idx} className="flex items-start gap-3 bg-primary-50 p-4 rounded-lg border border-primary-100">
+                  <CheckCircle className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-clinical-700">{reason}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Nova Features That Address Your Needs */}
+          <div className="mb-6">
+            <h4 className="font-bold text-clinical-900 mb-3 text-lg">How Nova Can Help You:</h4>
+            <ul className="space-y-2">
+              {novaRecommendation.features.map((feature, idx) => (
+                <li key={idx} className="flex items-start gap-3 text-clinical-700">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary-600 mt-2 flex-shrink-0"></div>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* CTA Button */}
+          <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg p-6 text-white">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 className="font-bold text-xl mb-1">Ready to Hear Better?</h4>
+                <p className="text-primary-100 text-sm">Explore the Nova hearing aid designed for your hearing needs.</p>
+              </div>
+              <a
+                href="https://heardirectclub.com/products/nova"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-primary-600 hover:bg-primary-50 font-bold px-6 py-3 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
+              >
+                Learn More About Nova
+                <ExternalLink className="w-5 h-5" />
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Test Methodology */}
