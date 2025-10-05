@@ -51,7 +51,6 @@ exports.handler = async (event) => {
                 type: 'profile',
                 attributes: {
                   email,
-                  properties: { ...(utm || {}) },
                   subscriptions: {
                     email: {
                       marketing: {
