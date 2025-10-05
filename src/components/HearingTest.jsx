@@ -861,20 +861,30 @@ export default function HearingTest({ userData, onComplete }) {
                   <span className="text-white text-xs font-semibold mt-1">Softer</span>
                 </button>
 
-                <button
-                  onClick={() => toggleCalibrationTone(currentEar)}
-                  className={`w-24 h-24 rounded-md flex items-center justify-center transition-all ${
-                    adjustmentPlaying
-                      ? 'bg-primary-700'
-                      : 'bg-primary-600 hover:bg-primary-700'
-                  } ${isPulsing ? 'ring-4 ring-primary-400' : ''}`}
-                >
-                  {adjustmentPlaying ? (
-                    <Pause className="w-10 h-10 text-white" />
-                  ) : (
-                    <Play className="w-10 h-10 text-white" />
-                  )}
-                </button>
+                <div className="relative">
+                  {!adjustmentPlaying && <PlayCoachmark text="Tap Play" />}
+                  <button
+                    onClick={() => toggleCalibrationTone(currentEar)}
+                    aria-label={adjustmentPlaying ? 'Pause tone' : 'Play tone'}
+                    className={`w-24 h-24 rounded-md flex flex-col items-center justify-center transition-all ${
+                      adjustmentPlaying
+                        ? 'bg-primary-700'
+                        : 'bg-primary-600 hover:bg-primary-700'
+                    } ${isPulsing ? 'ring-4 ring-primary-400' : ''} ${!adjustmentPlaying ? 'ring-4 ring-primary-300 animate-pulse' : ''}`}
+                  >
+                    {adjustmentPlaying ? (
+                      <>
+                        <Pause className="w-10 h-10 text-white" />
+                        <span className="text-white text-[10px] font-bold mt-1">PAUSE</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-10 h-10 text-white" />
+                        <span className="text-white text-[10px] font-bold mt-1">PLAY</span>
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 <button
                   onClick={handleCalibrationIncrease}
@@ -1130,6 +1140,7 @@ export default function HearingTest({ userData, onComplete }) {
               <button
                 onClick={handlePlayTone}
                 disabled={isPlaying || countdown !== null}
+                aria-label="Play tone"
                 className={`w-28 h-28 rounded-md flex flex-col items-center justify-center transition-all relative ${
                   isPlaying || countdown !== null
                     ? 'bg-primary-400 cursor-not-allowed'
