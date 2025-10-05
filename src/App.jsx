@@ -31,11 +31,19 @@ function App() {
 
   const handleQuestionnaireComplete = (data) => {
     setUserData(data)
+    // Fire Facebook Pixel event when test starts
+    if (window.fbq) {
+      window.fbq('track', 'started-test')
+    }
     transitionToStage('test')
   }
 
   const handleTestComplete = (results) => {
     setTestResults(results)
+    // Fire Facebook Pixel event when test finishes
+    if (window.fbq) {
+      window.fbq('track', 'finished-test')
+    }
     transitionToStage('email-collection')
   }
 
