@@ -64,15 +64,64 @@ export default function Results({ results, userData, onRestart }) {
   const rightClassification = classifyHearingLoss(rightAvgDb)
   const overallClassification = classifyHearingLoss(overallAvgDb)
 
+  // Detect any high-frequency (4–8 kHz) issue per ear
+  const hasHighFreqIssueForEar = (ear) => {
+    const checkFreqs = [4000, 8000]
+    return checkFreqs.some((f) => {
+      const r = ear.find(x => x.frequency === f)
+      if (!r) return false
+      if (r.thresholdDb !== undefined) return Math.abs(r.thresholdDb) > 25 // not normal
+      return r.heard === false // detection miss counts as issue
+    })
+  }
+  const highFreqConcern = hasHighFreqIssueForEar(leftEar) || hasHighFreqIssueForEar(rightEar)
+
+  // Helpers to compute worst thresholds
+  const worstDbInEar = (ear) => {
+    const ths = ear.filter(r => r.thresholdDb !== undefined).map(r => Math.abs(r.thresholdDb))
+    if (ths.length === 0) return null
+    return Math.max(...ths)
+  }
+  const worstDbLeft = worstDbInEar(leftEar)
+  const worstDbRight = worstDbInEar(rightEar)
+  const worstEarDb = [worstDbLeft, worstDbRight].filter(v => v !== null).reduce((a, b) => Math.max(a, b), 0)
+
+  // Worst high-frequency dB across both ears (use detection miss as conservative 30 dB HL)
+  const worstHighFreqDb = (() => {
+    const gather = (ear) => [4000, 8000].map(f => {
+      const r = ear.find(x => x.frequency === f)
+      if (!r) return null
+      if (r.thresholdDb !== undefined) return Math.abs(r.thresholdDb)
+      if (r.heard === false) return 30 // conservative mapping for a miss
+      return null
+    }).filter(v => v !== null)
+    const arr = [...gather(leftEar), ...gather(rightEar)]
+    return arr.length ? Math.max(...arr) : null
+  })()
+
   // Determine hearing status
-  const getHearingStatus = (score) => {
-    if (score >= 90) return { level: 'Excellent', color: 'green', description: 'Your hearing appears to be in excellent condition.' }
-    if (score >= 75) return { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
-    if (score >= 60) return { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected.' }
-    return { level: 'Needs Attention', color: 'red', description: 'Significant hearing concerns detected.' }
+  const statusFromDb = (db) => {
+    if (db == null) return { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
+    if (db > 55) return { level: 'Needs Attention', color: 'red', description: 'Significant hearing concerns detected.' }
+    if (db > 40) return { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected.' }
+    if (db > 25) return { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
+    // db <= 25
+    return { level: 'Excellent', color: 'green', description: 'Your hearing appears to be in excellent condition.' }
   }
 
-  const status = getHearingStatus(overallScore)
+  // Base status primarily on worst ear/frequency; then refine with high-frequency concern and detection percent
+  let status = statusFromDb(worstEarDb)
+  // If worst ear is within normal but detection percent is lower, drop from Excellent to Good/Fair
+  if (status.level === 'Excellent' && overallScore < 90 && overallScore >= 75) {
+    status = { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
+  } else if (status.level === 'Excellent' && overallScore < 75) {
+    status = { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected.' }
+  }
+  // Strong high-frequency gating
+  if (highFreqConcern) {
+    const gated = statusFromDb(worstHighFreqDb ?? 30)
+    status = gated
+  }
 
   // Analyze frequency-specific patterns
   const analyzeFrequencyPattern = () => {
@@ -95,7 +144,7 @@ export default function Results({ results, userData, onRestart }) {
 
     const patterns = []
     
-    if ((leftHigh < 0.5 || rightHigh < 0.5) && (leftLow > 0.8 && rightLow > 0.8)) {
+    if ((leftHigh <= 0.5 || rightHigh <= 0.5) && (leftLow > 0.8 && rightLow > 0.8)) {
       patterns.push('High-frequency hearing loss detected (common with age-related hearing loss)')
     }
     if ((leftLow < 0.5 || rightLow < 0.5) && (leftHigh > 0.8 && rightHigh > 0.8)) {
@@ -213,6 +262,12 @@ export default function Results({ results, userData, onRestart }) {
         </div>
 
         {/* Overall Score */}
+        {highFreqConcern && (
+          <div className="rounded-md p-4 mb-4 border bg-yellow-50 border-yellow-200 text-yellow-800">
+            <div className="font-semibold">High-frequency hearing changes detected</div>
+            <div className="text-sm">Sounds like birds and consonants (s, f, th) may be harder to hear. Consider a full audiology evaluation.</div>
+          </div>
+        )}
         <div className={`rounded-md p-6 sm:p-8 mb-6 border ${getColorClasses(status.color)}`}>
           <div className="flex items-start gap-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${getIconColorClasses(status.color)}`}>

@@ -9,13 +9,13 @@ const testFrequencies = [
   { freq: 1000, label: '1 kHz', ear: 'left', type: 'adjustment' },
   { freq: 2000, label: '2 kHz', ear: 'left', type: 'detection' },
   { freq: 4000, label: '4 kHz', ear: 'left', type: 'adjustment' },
-  { freq: 8000, label: '8 kHz', ear: 'left', type: 'detection' },
+  { freq: 8000, label: '8 kHz', ear: 'left', type: 'adjustment' },
   { freq: 250, label: '250 Hz', ear: 'right', type: 'detection' },
   { freq: 500, label: '500 Hz', ear: 'right', type: 'detection' },
   { freq: 1000, label: '1 kHz', ear: 'right', type: 'adjustment' },
   { freq: 2000, label: '2 kHz', ear: 'right', type: 'detection' },
   { freq: 4000, label: '4 kHz', ear: 'right', type: 'adjustment' },
-  { freq: 8000, label: '8 kHz', ear: 'right', type: 'detection' },
+  { freq: 8000, label: '8 kHz', ear: 'right', type: 'adjustment' },
 ]
 
 const STORAGE_KEY = 'hearwell_test_progress'
@@ -147,22 +147,31 @@ export default function HearingTest({ userData, onComplete }) {
     const panner = audioContextRef.current.createStereoPanner()
     const envelope = audioContextRef.current.createGain()
     
-    // Set ear (left = -1, right = 1)
-    if (earSide) {
-      panner.pan.value = earSide === 'left' ? -1 : 1
-    } else {
-      const currentTestData = testFrequencies[currentTest]
-      panner.pan.value = currentTestData.ear === 'left' ? -1 : 1
-    }
+    // Set ear (left = -1, right = 1) and determine detection level from calibration
+    const currentTestData = testFrequencies[currentTest]
+    const targetEar = earSide || currentTestData.ear
+    panner.pan.value = targetEar === 'left' ? -1 : 1
 
     oscillator.type = 'sine'
     oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime)
     
-    // Fade in/out envelope for smoother sound
+    // Helper: compute detection dB from calibration (+5 dB SL), with fallbacks
+    const getDetectionDbForEar = (ear) => {
+      const base = calibrationBaseline?.[ear]
+      if (typeof base === 'number') {
+        return Math.min(base + 5, MAX_DB)
+      }
+      return -35 // sensible fallback if calibration missing
+    }
+
+    const detectionDb = getDetectionDbForEar(targetEar)
+
+    // Fade in/out envelope for smoother sound using calibrated gain
     const now = audioContextRef.current.currentTime
     envelope.gain.setValueAtTime(0, now)
-    envelope.gain.linearRampToValueAtTime(volumeLevel, now + 0.1) // 100ms fade in
-    envelope.gain.setValueAtTime(volumeLevel, now + duration / 1000 - 0.1)
+    const detGain = dbToGain(detectionDb)
+    envelope.gain.linearRampToValueAtTime(detGain, now + 0.1) // 100ms fade in
+    envelope.gain.setValueAtTime(detGain, now + duration / 1000 - 0.1)
     envelope.gain.linearRampToValueAtTime(0, now + duration / 1000) // 100ms fade out
     
     oscillator.connect(envelope)
@@ -464,7 +473,13 @@ export default function HearingTest({ userData, onComplete }) {
       ear: test.ear,
       heard: heard,
       volume: volumeLevel,
-      threshold: heard ? volumeLevel : null,
+      // record the calibrated detection level used (dB HL proxy)
+      detectionDb: (() => {
+        const base = calibrationBaseline?.[test.ear]
+        if (typeof base === 'number') return Math.min(base + 5, MAX_DB)
+        return -35
+      })(),
+      threshold: null,
       testType: 'detection'
     }
     
