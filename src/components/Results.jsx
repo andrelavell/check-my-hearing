@@ -1,26 +1,44 @@
-import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, TrendingDown, TrendingUp, Minus, ExternalLink, Volume2 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { CheckCircle, AlertCircle, Download, RotateCcw, Headphones, Award, ExternalLink, Volume2, ShieldCheck, AlertTriangle, Activity, Ear, BarChart3, Zap } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts'
 import { appendUtmParams } from '../utils/utm'
 
-export default function Results({ results, userData, onRestart }) {
-  const { leftEar, rightEar, leftScore, rightScore, overallScore } = results
+export default function Results({ results, userData, userEmail, onRestart }) {
+  const { leftEar, rightEar, calibrationBaseline, catchTrials, falsePositiveRate, reliable } = results
 
-  // Prepare data for audiogram
-  const frequencies = [250, 500, 1000, 2000, 4000, 8000]
-  
-  const chartData = frequencies.map(freq => {
-    const leftResult = leftEar.find(r => r.frequency === freq)
-    const rightResult = rightEar.find(r => r.frequency === freq)
-    
-    return {
-      frequency: freq >= 1000 ? `${freq / 1000}k` : freq,
-      left: leftResult?.heard ? 100 : 20,
-      right: rightResult?.heard ? 100 : 20,
-    }
-  })
+  // ─── Data extraction ─────────────────────────────────────────────────────
+  // Each ear item now has: { frequency, ear, thresholdDbHL, presentations, history }
+  const TEST_FREQUENCIES = [500, 1000, 2000, 4000, 8000]
 
-  // Classify hearing loss by dB HL (Hearing Level)
+  const getThreshold = (ear, freq) => {
+    const r = ear.find(x => x.frequency === freq)
+    return r ? r.thresholdDbHL : null
+  }
+
+  // Pure-Tone Average (PTA) — clinical standard uses 500, 1000, 2000 Hz
+  const calcPTA = (ear) => {
+    const ptaFreqs = [500, 1000, 2000]
+    const vals = ptaFreqs.map(f => getThreshold(ear, f)).filter(v => v !== null)
+    if (vals.length === 0) return null
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+  }
+
+  // High-frequency PTA (4000, 8000)
+  const calcHFPTA = (ear) => {
+    const vals = [4000, 8000].map(f => getThreshold(ear, f)).filter(v => v !== null)
+    if (vals.length === 0) return null
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+  }
+
+  const leftPTA = calcPTA(leftEar)
+  const rightPTA = calcPTA(rightEar)
+  const overallPTA = leftPTA !== null && rightPTA !== null ? Math.round((leftPTA + rightPTA) / 2) : (leftPTA || rightPTA || 0)
+
+  const leftHFPTA = calcHFPTA(leftEar)
+  const rightHFPTA = calcHFPTA(rightEar)
+
+  // Classify hearing loss by dB HL (WHO grades)
   const classifyHearingLoss = (dbHL) => {
+    if (dbHL === null) return { level: 'N/A', color: 'gray', range: '—' }
     if (dbHL <= 25) return { level: 'Normal', color: 'green', range: '0-25 dB HL' }
     if (dbHL <= 40) return { level: 'Mild', color: 'yellow', range: '26-40 dB HL' }
     if (dbHL <= 55) return { level: 'Moderate', color: 'orange', range: '41-55 dB HL' }
@@ -29,398 +47,344 @@ export default function Results({ results, userData, onRestart }) {
     return { level: 'Profound', color: 'red', range: '91+ dB HL' }
   }
 
-  // Calculate average threshold in dB HL for each ear
-  const calculateAverageThreshold = (earResults, earSide) => {
-    const thresholds = earResults
-      .filter(r => r.thresholdDb !== undefined)
-      .map(r => Math.abs(r.thresholdDb)) // Convert to positive dB HL
-    
-    if (thresholds.length === 0) {
-      // Fallback for detection-only tests
-      const heardCount = earResults.filter(r => r.heard).length
-      const estimatedDb = 25 - (heardCount / earResults.length) * 25
-      return Math.round(estimatedDb)
-    }
-    
-    // Calculate average threshold
-    const avgThreshold = Math.round(thresholds.reduce((a, b) => a + b, 0) / thresholds.length)
-    
-    // Adjust based on calibration baseline if available
-    if (results.calibrationBaseline && results.calibrationBaseline[earSide]) {
-      const baseline = Math.abs(results.calibrationBaseline[earSide])
-      // Normalize: if their baseline was higher (worse), adjust results accordingly
-      const adjustment = baseline - 40 // 40 dB is our standard reference
-      return Math.round(avgThreshold + adjustment)
-    }
-    
-    return avgThreshold
+  const leftClassification = classifyHearingLoss(leftPTA)
+  const rightClassification = classifyHearingLoss(rightPTA)
+  const overallClassification = classifyHearingLoss(overallPTA)
+
+  // Worst threshold across all frequencies
+  const allThresholds = [...leftEar, ...rightEar].map(r => r.thresholdDbHL).filter(v => v !== null)
+  const worstThreshold = allThresholds.length > 0 ? Math.max(...allThresholds) : 0
+
+  // High-frequency concern
+  const highFreqConcern = [leftHFPTA, rightHFPTA].some(v => v !== null && v > 25)
+
+  // Asymmetry
+  const asymmetry = leftPTA !== null && rightPTA !== null ? Math.abs(leftPTA - rightPTA) : 0
+
+  // Overall status
+  const getStatus = () => {
+    if (worstThreshold > 55) return { level: 'Needs Attention', color: 'red', description: 'Significant hearing loss detected. Professional evaluation recommended.' }
+    if (worstThreshold > 40) return { level: 'Fair', color: 'yellow', description: 'Moderate hearing loss detected in some frequencies.' }
+    if (worstThreshold > 25) return { level: 'Mild Loss', color: 'yellow', description: 'Mild hearing loss detected. Monitor and consider evaluation.' }
+    if (highFreqConcern) return { level: 'Good (HF concern)', color: 'blue', description: 'Hearing is mostly normal, but some high-frequency changes detected.' }
+    return { level: 'Excellent', color: 'green', description: 'Your hearing thresholds are within the normal range across all tested frequencies.' }
   }
+  const status = getStatus()
 
-  const leftAvgDb = calculateAverageThreshold(leftEar, 'left')
-  const rightAvgDb = calculateAverageThreshold(rightEar, 'right')
-  const overallAvgDb = Math.round((leftAvgDb + rightAvgDb) / 2)
+  // ─── Audiogram chart data ────────────────────────────────────────────────
+  // Clinical audiogram: X = frequency (log scale), Y = dB HL (inverted: 0 at top, higher = worse)
+  const chartData = TEST_FREQUENCIES.map(freq => ({
+    frequency: freq >= 1000 ? `${freq / 1000}k` : `${freq}`,
+    freqHz: freq,
+    left: getThreshold(leftEar, freq),
+    right: getThreshold(rightEar, freq),
+  }))
 
-  const leftClassification = classifyHearingLoss(leftAvgDb)
-  const rightClassification = classifyHearingLoss(rightAvgDb)
-  const overallClassification = classifyHearingLoss(overallAvgDb)
-
-  // Detect any high-frequency (4–8 kHz) issue per ear
-  const hasHighFreqIssueForEar = (ear) => {
-    const checkFreqs = [4000, 8000]
-    return checkFreqs.some((f) => {
-      const r = ear.find(x => x.frequency === f)
-      if (!r) return false
-      if (r.thresholdDb !== undefined) return Math.abs(r.thresholdDb) > 25 // not normal
-      return r.heard === false // detection miss counts as issue
-    })
-  }
-  const highFreqConcern = hasHighFreqIssueForEar(leftEar) || hasHighFreqIssueForEar(rightEar)
-
-  // Helpers to compute worst thresholds
-  const worstDbInEar = (ear) => {
-    const ths = ear.filter(r => r.thresholdDb !== undefined).map(r => Math.abs(r.thresholdDb))
-    if (ths.length === 0) return null
-    return Math.max(...ths)
-  }
-  const worstDbLeft = worstDbInEar(leftEar)
-  const worstDbRight = worstDbInEar(rightEar)
-  const worstEarDb = [worstDbLeft, worstDbRight].filter(v => v !== null).reduce((a, b) => Math.max(a, b), 0)
-
-  // Worst high-frequency dB across both ears (use detection miss as conservative 30 dB HL)
-  const worstHighFreqDb = (() => {
-    const gather = (ear) => [4000, 8000].map(f => {
-      const r = ear.find(x => x.frequency === f)
-      if (!r) return null
-      if (r.thresholdDb !== undefined) return Math.abs(r.thresholdDb)
-      if (r.heard === false) return 30 // conservative mapping for a miss
-      return null
-    }).filter(v => v !== null)
-    const arr = [...gather(leftEar), ...gather(rightEar)]
-    return arr.length ? Math.max(...arr) : null
-  })()
-
-  // Determine hearing status
-  const statusFromDb = (db) => {
-    if (db == null) return { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
-    if (db > 55) return { level: 'Needs Attention', color: 'red', description: 'Significant hearing concerns detected.' }
-    if (db > 40) return { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected.' }
-    if (db > 25) return { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
-    // db <= 25
-    return { level: 'Excellent', color: 'green', description: 'Your hearing appears to be in excellent condition.' }
-  }
-
-  // Base status primarily on worst ear/frequency; then refine with high-frequency concern and detection percent
-  let status = statusFromDb(worstEarDb)
-  // If worst ear is within normal but detection percent is lower, drop from Excellent to Good/Fair
-  if (status.level === 'Excellent' && overallScore < 90 && overallScore >= 75) {
-    status = { level: 'Good', color: 'blue', description: 'Your hearing is good, with minor areas to monitor.' }
-  } else if (status.level === 'Excellent' && overallScore < 75) {
-    status = { level: 'Fair', color: 'yellow', description: 'Some hearing loss detected.' }
-  }
-  // Strong high-frequency gating
-  if (highFreqConcern) {
-    const gated = statusFromDb(worstHighFreqDb ?? 30)
-    status = gated
-  }
-
-  // Analyze frequency-specific patterns
-  const analyzeFrequencyPattern = () => {
-    const lowFreq = [250, 500] // Low frequencies
-    const midFreq = [1000, 2000] // Mid frequencies  
-    const highFreq = [4000, 8000] // High frequencies
-
-    const checkRange = (freqs, ear) => {
-      const results = freqs.map(f => ear.find(r => r.frequency === f)?.heard)
-      const heardCount = results.filter(Boolean).length
-      return heardCount / results.length
-    }
-
-    const leftLow = checkRange(lowFreq, leftEar)
-    const leftMid = checkRange(midFreq, leftEar)
-    const leftHigh = checkRange(highFreq, leftEar)
-    const rightLow = checkRange(lowFreq, rightEar)
-    const rightMid = checkRange(midFreq, rightEar)
-    const rightHigh = checkRange(highFreq, rightEar)
-
+  // ─── Pattern analysis (threshold-based) ──────────────────────────────────
+  const analyzePatterns = () => {
     const patterns = []
-    
-    if ((leftHigh <= 0.5 || rightHigh <= 0.5) && (leftLow > 0.8 && rightLow > 0.8)) {
-      patterns.push('High-frequency hearing loss detected (common with age-related hearing loss)')
+
+    // High-frequency loss (sloping audiogram)
+    const leftLowAvg = calcAvg(leftEar, [500, 1000])
+    const leftHighAvg = calcAvg(leftEar, [4000, 8000])
+    const rightLowAvg = calcAvg(rightEar, [500, 1000])
+    const rightHighAvg = calcAvg(rightEar, [4000, 8000])
+
+    if ((leftHighAvg !== null && leftLowAvg !== null && leftHighAvg - leftLowAvg > 15) ||
+        (rightHighAvg !== null && rightLowAvg !== null && rightHighAvg - rightLowAvg > 15)) {
+      patterns.push('Sloping high-frequency hearing loss detected — common with noise exposure or age-related changes (presbycusis)')
     }
-    if ((leftLow < 0.5 || rightLow < 0.5) && (leftHigh > 0.8 && rightHigh > 0.8)) {
-      patterns.push('Low-frequency hearing loss detected')
+
+    if ((leftLowAvg !== null && leftHighAvg !== null && leftLowAvg - leftHighAvg > 15) ||
+        (rightLowAvg !== null && rightHighAvg !== null && rightLowAvg - rightHighAvg > 15)) {
+      patterns.push('Low-frequency hearing loss detected — less common pattern, may warrant medical evaluation')
     }
-    if (Math.abs(leftScore - rightScore) > 20) {
-      patterns.push('Asymmetric hearing loss between ears')
+
+    if (asymmetry > 15) {
+      patterns.push(`Asymmetric hearing detected (${asymmetry} dB difference between ears) — asymmetries over 15 dB should be evaluated`)
     }
-    if (leftLow > 0.8 && leftMid > 0.8 && leftHigh > 0.8 && rightLow > 0.8 && rightMid > 0.8 && rightHigh > 0.8) {
-      patterns.push('Bilateral normal hearing across all frequencies')
+
+    // 4 kHz notch (noise-induced)
+    const check4kNotch = (ear) => {
+      const t2k = getThreshold(ear, 2000)
+      const t4k = getThreshold(ear, 4000)
+      const t8k = getThreshold(ear, 8000)
+      if (t2k !== null && t4k !== null && t8k !== null) {
+        return t4k > t2k + 10 && t4k > t8k + 10
+      }
+      return false
+    }
+    if (check4kNotch(leftEar) || check4kNotch(rightEar)) {
+      patterns.push('4 kHz notch detected — characteristic of noise-induced hearing loss')
+    }
+
+    if (overallPTA <= 25 && !highFreqConcern && asymmetry <= 10) {
+      patterns.push('Bilateral normal hearing across all tested frequencies')
     }
 
     return patterns
   }
 
-  const frequencyPatterns = analyzeFrequencyPattern()
+  const calcAvg = (ear, freqs) => {
+    const vals = freqs.map(f => getThreshold(ear, f)).filter(v => v !== null)
+    return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
+  }
 
-  // Generate personalized Nova hearing aid recommendation
+  const frequencyPatterns = analyzePatterns()
+
+  // ─── Nova recommendation (uses real threshold data) ──────────────────────
   const generateNovaRecommendation = () => {
     const reasons = []
     const features = []
-    
-    // Analyze high-frequency loss (common pattern)
-    const highFreq = [4000, 8000]
-    const leftHigh = highFreq.map(f => leftEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / highFreq.length
-    const rightHigh = highFreq.map(f => rightEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / highFreq.length
-    
-    if (leftHigh < 0.8 || rightHigh < 0.8) {
-      reasons.push('Your assessment shows reduced sensitivity in high frequencies (4-8 kHz), which are critical for understanding speech clarity, especially consonants like "s," "f," and "th."')
-      features.push('Restores the high-frequency sounds you\'re missing, so you can hear conversations clearly again')
+
+    if (highFreqConcern) {
+      const worst = Math.max(leftHFPTA || 0, rightHFPTA || 0)
+      reasons.push(`Your high-frequency thresholds average ${worst} dB HL, which affects speech clarity — especially consonants like "s," "f," and "th."`)
+      features.push('Restores high-frequency sounds critical for speech understanding')
     }
-    
-    // Check for mild to moderate hearing loss
-    if (overallAvgDb >= 26 && overallAvgDb <= 55) {
-      reasons.push(`Your average hearing threshold of ${overallAvgDb} dB HL indicates ${overallClassification.level.toLowerCase()} hearing loss, which can benefit significantly from amplification.`)
-      features.push('Calibrated specifically for your level of hearing loss to give you the exact amplification you need')
+
+    if (overallPTA >= 26 && overallPTA <= 55) {
+      reasons.push(`Your PTA of ${overallPTA} dB HL indicates ${overallClassification.level.toLowerCase()} hearing loss, which benefits significantly from amplification.`)
+      features.push('Calibrated for your exact level of hearing loss')
     }
-    
-    // Check for asymmetric hearing
-    if (Math.abs(leftScore - rightScore) > 15) {
-      reasons.push('Your results show different hearing levels between ears, requiring independent adjustment for optimal balance.')
-      features.push('Adjusts independently for each of your ears since they have different hearing levels')
+
+    if (asymmetry > 10) {
+      reasons.push(`Your ears differ by ${asymmetry} dB, requiring independent adjustment for optimal balance.`)
+      features.push('Independent ear-by-ear tuning for balanced hearing')
     }
-    
-    // Check mid-frequency issues (speech range)
-    const midFreq = [1000, 2000]
-    const leftMid = midFreq.map(f => leftEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / midFreq.length
-    const rightMid = midFreq.map(f => rightEar.find(r => r.frequency === f)?.heard).filter(Boolean).length / midFreq.length
-    
-    if (leftMid < 0.9 || rightMid < 0.9) {
-      reasons.push('Your mid-frequency response (1-2 kHz) shows areas for improvement. This range is essential for understanding vowel sounds and overall speech intelligibility.')
-      features.push('Targets the exact frequency ranges where your hearing needs the most help')
+
+    if (overallPTA <= 25 && !highFreqConcern) {
+      reasons.push('Your hearing is currently normal. The Nova can still help in challenging listening environments like restaurants or meetings.')
+      features.push('Enhanced clarity in noisy environments')
     }
-    
-    // Default recommendations if hearing is good
-    if (overallScore >= 90) {
-      reasons.push('While your hearing is currently in excellent condition, the Nova can help you maintain clarity in challenging listening environments.')
-      features.push('Helps you hear clearly even in noisy restaurants, meetings, and crowded spaces')
-    } else if (overallScore >= 75) {
-      reasons.push('Your hearing assessment indicates early changes that could benefit from assistive technology to prevent communication difficulties.')
-      features.push('Automatically adjusts as you move between quiet and noisy environments throughout your day')
-    }
-    
-    // Universal features
-    features.push('Rechargeable battery system - no need to constantly buy and replace tiny batteries')
-    features.push('Discreet, comfortable design that fits naturally behind the ear')
-    features.push('FDA-registered hearing aid with clinical-grade sound quality')
-    
+
+    features.push('Rechargeable battery — no tiny batteries to replace')
+    features.push('Discreet, comfortable behind-the-ear design')
+    features.push('FDA-registered with clinical-grade sound processing')
+
     return { reasons, features }
   }
 
   const novaRecommendation = generateNovaRecommendation()
 
-  const getColorClasses = (color) => {
-    const colors = {
-      green: 'bg-green-50 border-green-200 text-green-700',
-      blue: 'bg-blue-50 border-blue-200 text-blue-700',
-      yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-      red: 'bg-red-50 border-red-200 text-red-700',
-    }
-    return colors[color] || colors.blue
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+  const getColorClasses = (color) => ({
+    green: 'bg-green-50 border-green-200 text-green-700',
+    blue: 'bg-blue-50 border-blue-200 text-blue-700',
+    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
+    red: 'bg-red-50 border-red-200 text-red-700',
+  }[color] || 'bg-blue-50 border-blue-200 text-blue-700')
+
+  const getIconColorClasses = (color) => ({
+    green: 'bg-green-100 text-green-600',
+    blue: 'bg-blue-100 text-blue-600',
+    yellow: 'bg-yellow-100 text-yellow-600',
+    red: 'bg-red-100 text-red-600',
+  }[color] || 'bg-blue-100 text-blue-600')
+
+  const classificationBadge = (cls) => {
+    const bg = {
+      green: 'bg-green-100 text-green-700',
+      yellow: 'bg-yellow-100 text-yellow-700',
+      orange: 'bg-orange-100 text-orange-700',
+      red: 'bg-red-100 text-red-700',
+      gray: 'bg-gray-100 text-gray-500',
+    }[cls.color] || 'bg-gray-100 text-gray-500'
+    return <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${bg}`}>{cls.level}</span>
   }
 
-  const getIconColorClasses = (color) => {
-    const colors = {
-      green: 'bg-green-100 text-green-600',
-      blue: 'bg-blue-100 text-blue-600',
-      yellow: 'bg-yellow-100 text-yellow-600',
-      red: 'bg-red-100 text-red-600',
-    }
-    return colors[color] || colors.blue
+  // Custom audiogram tooltip
+  const AudiogramTooltip = ({ active, payload, label }) => {
+    if (!active || !payload) return null
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg text-xs">
+        <p className="font-bold text-clinical-900 mb-1">{label} Hz</p>
+        {payload.map((entry, i) => (
+          <p key={i} style={{ color: entry.color }}>
+            {entry.name}: {entry.value !== null ? `${entry.value} dB HL` : 'N/A'}
+            {entry.value !== null && (
+              <span className="text-gray-500 ml-1">({classifyHearingLoss(entry.value).level})</span>
+            )}
+          </p>
+        ))}
+      </div>
+    )
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen py-8 px-4 relative">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary-500 rounded-md flex items-center justify-center">
-              <Headphones className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-md">
+              <Activity className="w-6 h-6 text-white" />
             </div>
             <span className="text-xl font-bold text-clinical-900">CheckMyHearing</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-clinical-900 mb-2">
-            Hearing Assessment Results
+            Your Hearing Results
           </h1>
           <p className="text-clinical-600">
-            Assessment Date: {new Date(results.timestamp).toLocaleDateString('en-US', { 
-              month: 'long', 
-              day: 'numeric', 
-              year: 'numeric' 
-            })}
+            {new Date(results.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
 
-        {/* Overall Score */}
-        {highFreqConcern && (
-          <div className="rounded-md p-4 mb-4 border bg-yellow-50 border-yellow-200 text-yellow-800">
-            <div className="font-semibold">High-frequency hearing changes detected</div>
-            <div className="text-sm">Sounds like birds and consonants (s, f, th) may be harder to hear. Consider a full audiology evaluation.</div>
+        {/* Reliability badge */}
+        {catchTrials && catchTrials.total > 0 && (
+          <div className={`rounded-lg p-4 mb-4 border flex items-start gap-3 ${
+            reliable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+          }`}>
+            {reliable ? <ShieldCheck className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" /> : <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />}
+            <div>
+              <div className={`font-semibold ${reliable ? 'text-green-800' : 'text-red-800'}`}>
+                Test Reliability: {Math.round((1 - falsePositiveRate) * 100)}%
+              </div>
+              <div className={`text-sm ${reliable ? 'text-green-700' : 'text-red-700'}`}>
+                {reliable
+                  ? `${catchTrials.total} catch trials completed with ${catchTrials.falsePositives} false positive${catchTrials.falsePositives !== 1 ? 's' : ''} — results are reliable.`
+                  : `High false-positive rate detected. Results may be less accurate. Consider retaking the test in a quieter environment.`
+                }
+              </div>
+            </div>
           </div>
         )}
-        <div className={`rounded-md p-6 sm:p-8 mb-6 border ${getColorClasses(status.color)}`}>
+
+        {/* High-frequency alert */}
+        {highFreqConcern && (
+          <div className="rounded-lg p-4 mb-4 border bg-yellow-50 border-yellow-200 text-yellow-800 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <div className="font-semibold">High-frequency hearing changes detected</div>
+              <div className="text-sm">Sounds like birds and consonants (s, f, th) may be harder to hear.</div>
+            </div>
+          </div>
+        )}
+
+        {/* Overall Status */}
+        <div className={`rounded-lg p-6 sm:p-8 mb-6 border ${getColorClasses(status.color)}`}>
           <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${getIconColorClasses(status.color)}`}>
+            <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${getIconColorClasses(status.color)}`}>
               {status.color === 'green' || status.color === 'blue' ? (
-                <CheckCircle className="w-6 h-6" />
+                <CheckCircle className="w-7 h-7" />
               ) : (
-                <AlertCircle className="w-6 h-6" />
+                <AlertCircle className="w-7 h-7" />
               )}
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold mb-2">
-                Clinical Assessment: {status.level}
-              </h2>
-              <p className="text-lg mb-4">{status.description}</p>
+              <h2 className="text-xl font-bold mb-2">Assessment: {status.level}</h2>
+              <p className="text-base mb-4">{status.description}</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
-                  <div className="text-3xl font-bold">{overallScore}%</div>
-                  <div className="text-sm">Detection Rate</div>
+                  <div className="text-3xl font-bold">{overallPTA}</div>
+                  <div className="text-sm">PTA (dB HL)</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold">{overallAvgDb}</div>
-                  <div className="text-sm">Avg Threshold (dB HL)</div>
-                </div>
-                <div className="col-span-2 sm:col-span-1">
                   <div className="text-lg font-bold">{overallClassification.level}</div>
                   <div className="text-sm">{overallClassification.range}</div>
                 </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <div className="text-lg font-bold">{allThresholds.length}</div>
+                  <div className="text-sm">Frequencies Tested</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Individual Ear Scores */}
+        {/* Individual Ear Cards */}
         <div className="grid sm:grid-cols-2 gap-4 mb-6">
-          <div className="glass p-6">
-            <h3 className="font-bold text-clinical-900 mb-3">Left Ear (AS)</h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-bold text-primary-600">{leftScore}%</span>
-                  <span className="text-sm text-clinical-600">detection</span>
+          {[
+            { label: 'Left Ear', ear: leftEar, pta: leftPTA, cls: leftClassification, hfpta: leftHFPTA },
+            { label: 'Right Ear', ear: rightEar, pta: rightPTA, cls: rightClassification, hfpta: rightHFPTA },
+          ].map(({ label, pta, cls, hfpta }) => (
+            <div key={label} className="glass p-6">
+              <h3 className="font-bold text-clinical-900 mb-3">{label}</h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-sm text-clinical-600 mb-1">Pure-Tone Average (500-2k Hz)</div>
+                  <div className="text-3xl font-bold text-primary-600">{pta !== null ? `${pta}` : '—'} <span className="text-base font-medium text-clinical-500">dB HL</span></div>
+                  <div className="mt-2">{classificationBadge(cls)}</div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary-600 h-2 rounded transition-all"
-                    style={{ width: `${leftScore}%` }}
-                  />
-                </div>
-              </div>
-              <div className="pt-2 border-t border-clinical-200">
-                <div className="text-sm text-clinical-600 mb-1">Average Threshold</div>
-                <div className="text-2xl font-bold text-clinical-900">{leftAvgDb} dB HL</div>
-                <div className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                  leftClassification.color === 'green' ? 'bg-green-100 text-green-700' :
-                  leftClassification.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                  leftClassification.color === 'orange' ? 'bg-orange-100 text-orange-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {leftClassification.level}
-                </div>
+                {hfpta !== null && (
+                  <div className="pt-2 border-t border-clinical-200">
+                    <div className="text-sm text-clinical-600 mb-1">High-Frequency Average (4-8k Hz)</div>
+                    <div className="text-xl font-bold text-clinical-900">{hfpta} <span className="text-sm font-medium text-clinical-500">dB HL</span></div>
+                    <div className="mt-1">{classificationBadge(classifyHearingLoss(hfpta))}</div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-
-          <div className="glass p-6">
-            <h3 className="font-bold text-clinical-900 mb-3">Right Ear (AD)</h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-bold text-primary-600">{rightScore}%</span>
-                  <span className="text-sm text-clinical-600">detection</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary-600 h-2 rounded transition-all"
-                    style={{ width: `${rightScore}%` }}
-                  />
-                </div>
-              </div>
-              <div className="pt-2 border-t border-clinical-200">
-                <div className="text-sm text-clinical-600 mb-1">Average Threshold</div>
-                <div className="text-2xl font-bold text-clinical-900">{rightAvgDb} dB HL</div>
-                <div className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                  rightClassification.color === 'green' ? 'bg-green-100 text-green-700' :
-                  rightClassification.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                  rightClassification.color === 'orange' ? 'bg-orange-100 text-orange-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {rightClassification.level}
-                </div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Audiogram */}
+        {/* Audiogram — Clinical Standard */}
         <div className="glass p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-xl font-bold text-clinical-900 mb-2">Audiometric Frequency Response</h3>
+              <h3 className="text-xl font-bold text-clinical-900 mb-1">Audiogram</h3>
               <p className="text-clinical-600 text-sm">
-                Frequency-specific hearing threshold responses by ear (Hz).
+                Hearing thresholds in dB HL — lower is better. Shaded area = normal hearing (0-25 dB HL).
               </p>
             </div>
             <div className="inline-flex items-center gap-1.5 bg-clinical-100 px-2.5 py-1 rounded text-xs font-semibold text-clinical-700 border border-clinical-200">
               <Award className="w-3 h-3" />
-              Clinical Chart
+              Clinical Audiogram
             </div>
           </div>
-          
-          <div className="h-64 sm:h-80">
+
+          <div className="h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="frequency" 
-                  label={{ value: 'Frequency (Hz)', position: 'insideBottom', offset: -5, style: { fontSize: '12px', fill: '#6b7280' } }}
+                <ReferenceArea y1={-10} y2={25} fill="#dcfce7" fillOpacity={0.5} />
+                <ReferenceLine y={25} stroke="#86efac" strokeDasharray="4 4" label={{ value: '25 dB (Normal limit)', position: 'right', fontSize: 10, fill: '#16a34a' }} />
+                <XAxis
+                  dataKey="frequency"
+                  label={{ value: 'Frequency (Hz)', position: 'insideBottom', offset: -10, style: { fontSize: '12px', fill: '#6b7280' } }}
                   tick={{ fontSize: 12, fill: '#6b7280' }}
                 />
-                <YAxis 
-                  label={{ value: 'Response Level (0–100)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#6b7280' } }}
-                  domain={[0, 100]}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                <YAxis
+                  reversed
+                  domain={[-10, 90]}
+                  ticks={[-10, 0, 10, 20, 25, 30, 40, 50, 60, 70, 80, 90]}
+                  label={{ value: 'Hearing Level (dB HL)', angle: -90, position: 'insideLeft', offset: 5, style: { fontSize: '12px', fill: '#6b7280' } }}
+                  tick={{ fontSize: 10, fill: '#6b7280' }}
                 />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px' }}
+                <Tooltip content={<AudiogramTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Line
+                  type="monotone"
+                  dataKey="left"
+                  stroke="#005A8E"
+                  strokeWidth={2.5}
+                  name="Left Ear (X)"
+                  dot={{ fill: '#005A8E', r: 6, strokeWidth: 2 }}
+                  activeDot={{ r: 8 }}
+                  connectNulls
                 />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="left" 
-                  stroke="#005A8E" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Left Ear"
-                  dot={{ fill: '#005A8E', r: 5 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="right" 
-                  stroke="#53afcb" 
-                  strokeWidth={2}
-                  name="Right Ear"
-                  dot={{ fill: '#53afcb', r: 5 }}
+                <Line
+                  type="monotone"
+                  dataKey="right"
+                  stroke="#dc2626"
+                  strokeWidth={2.5}
+                  name="Right Ear (O)"
+                  dot={{ fill: '#dc2626', r: 6, strokeWidth: 2 }}
+                  activeDot={{ r: 8 }}
+                  connectNulls
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
+          <div className="mt-2 text-xs text-clinical-500 text-center">
+            Convention: Left ear = X (blue) | Right ear = O (red) | Lower dB HL = better hearing
+          </div>
         </div>
 
-        {/* Frequency Pattern Analysis */}
+        {/* Clinical Findings */}
         {frequencyPatterns.length > 0 && (
           <div className="glass p-6 mb-6">
             <h3 className="text-xl font-bold text-clinical-900 mb-4">Clinical Findings</h3>
@@ -435,121 +399,84 @@ export default function Results({ results, userData, onRestart }) {
           </div>
         )}
 
-        {/* Detailed Breakdown */}
+        {/* Frequency-Specific Threshold Table */}
         <div className="glass p-6 mb-6">
           <h3 className="text-xl font-bold text-clinical-900 mb-4">Frequency-Specific Thresholds</h3>
-          
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b-2 border-gray-300">
                   <th className="text-left py-3 px-2 font-semibold text-gray-900">Frequency</th>
                   <th className="text-left py-3 px-2 font-semibold text-gray-900">Range</th>
-                  <th className="text-center py-3 px-2 font-semibold text-gray-900">Left Ear (AS)</th>
-                  <th className="text-center py-3 px-2 font-semibold text-gray-900">Right Ear (AD)</th>
-                  <th className="text-center py-3 px-2 font-semibold text-gray-900">Test Type</th>
+                  <th className="text-center py-3 px-2 font-semibold text-gray-900">Left Ear</th>
+                  <th className="text-center py-3 px-2 font-semibold text-gray-900">Right Ear</th>
                 </tr>
               </thead>
               <tbody>
-                {frequencies.map((freq) => {
+                {TEST_FREQUENCIES.map((freq) => {
                   const leftResult = leftEar.find(r => r.frequency === freq)
                   const rightResult = rightEar.find(r => r.frequency === freq)
-                  
-                  const getFreqRange = (f) => {
-                    if (f <= 500) return 'Low'
-                    if (f <= 2000) return 'Mid'
-                    return 'High'
-                  }
+                  const getFreqRange = (f) => f <= 500 ? 'Low' : f <= 2000 ? 'Mid' : 'High'
 
                   const renderThreshold = (result) => {
                     if (!result) return <span className="text-gray-400">—</span>
-                    
-                    if (result.thresholdDb !== undefined) {
-                      const dbHL = Math.abs(result.thresholdDb)
-                      const classification = classifyHearingLoss(dbHL)
-                      return (
-                        <div className="flex flex-col items-center">
-                          <span className="font-semibold text-clinical-900">{dbHL} dB HL</span>
-                          <span className={`text-xs ${
-                            classification.color === 'green' ? 'text-green-600' :
-                            classification.color === 'yellow' ? 'text-yellow-600' :
-                            classification.color === 'orange' ? 'text-orange-600' :
-                            'text-red-600'
-                          }`}>
-                            {classification.level}
-                          </span>
-                        </div>
-                      )
-                    }
-                    
-                    return result.heard ? (
-                      <span className="inline-flex items-center gap-1 text-green-600">
-                        <CheckCircle className="w-4 h-4" /> Detected
-                      </span>
-                    ) : (
-                      <span className="text-red-600">Not detected</span>
+                    const dbHL = result.thresholdDbHL
+                    const cls = classifyHearingLoss(dbHL)
+                    return (
+                      <div className="flex flex-col items-center">
+                        <span className="font-semibold text-clinical-900">{dbHL} dB HL</span>
+                        <span className={`text-xs ${
+                          cls.color === 'green' ? 'text-green-600' :
+                          cls.color === 'yellow' ? 'text-yellow-600' :
+                          cls.color === 'orange' ? 'text-orange-600' :
+                          'text-red-600'
+                        }`}>{cls.level}</span>
+                        <span className="text-[10px] text-clinical-400">{result.presentations} presentations</span>
+                      </div>
                     )
                   }
-                  
+
                   return (
                     <tr key={freq} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-2 font-semibold text-gray-900">
                         {freq >= 1000 ? `${freq / 1000} kHz` : `${freq} Hz`}
                       </td>
-                      <td className="py-3 px-2 text-gray-600">
-                        {getFreqRange(freq)}
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        {renderThreshold(leftResult)}
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        {renderThreshold(rightResult)}
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        <span className="inline-block px-2 py-1 rounded text-xs bg-clinical-100 text-clinical-700">
-                          {leftResult?.testType === 'adjustment' ? 'Adjustment' : 'Detection'}
-                        </span>
-                      </td>
+                      <td className="py-3 px-2 text-gray-600">{getFreqRange(freq)}</td>
+                      <td className="py-3 px-2 text-center">{renderThreshold(leftResult)}</td>
+                      <td className="py-3 px-2 text-center">{renderThreshold(rightResult)}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
-          
-          <div className="mt-4 p-3 bg-clinical-50 rounded border border-clinical-200">
+          <div className="mt-4 p-3 bg-clinical-50 rounded-lg border border-clinical-200">
             <p className="text-xs text-clinical-600">
-              <strong>Legend:</strong> dB HL = Decibels Hearing Level | AS = Auris Sinistra (Left Ear) | AD = Auris Dextra (Right Ear) | 
-              Normal: 0-25 dB HL | Mild: 26-40 dB HL | Moderate: 41-55 dB HL | Moderately Severe: 56-70 dB HL
+              <strong>How to read:</strong> dB HL = how loud a sound needs to be for you to hear it (lower is better). 
+              Normal: 0-25 | Mild loss: 26-40 | Moderate: 41-55 | Moderately Severe: 56-70 | Severe: 71-90
             </p>
           </div>
         </div>
 
-        {/* Nova Hearing Aid Recommendation */}
-        <div className="glass p-6 sm:p-8 mb-6 border-2 border-primary-500 sm:border-primary-200 shadow-lg sm:shadow-none">
+        {/* Nova Recommendation */}
+        <div className="glass p-6 sm:p-8 mb-6 border-2 border-primary-200 shadow-lg">
           <div className="flex items-start gap-4 mb-6">
-            <div className="hidden sm:flex w-14 h-14 bg-primary-600 rounded-lg items-center justify-center flex-shrink-0">
-              <Volume2 className="w-8 h-8 text-white" />
+            <div className="hidden sm:flex w-14 h-14 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl items-center justify-center flex-shrink-0 shadow-md">
+              <Ear className="w-8 h-8 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-2xl font-bold text-clinical-900 mb-2">Recommended Solution: Nova Hearing Aid</h3>
+              <h3 className="text-2xl font-bold text-clinical-900 mb-2">Recommended: Nova Hearing Aid</h3>
               <p className="text-clinical-600">
-                Based on your specific hearing profile, we recommend the{' '}
-                <a 
-                  href={appendUtmParams("https://heardirectclub.com/products/nova")}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary-600 hover:text-primary-700 underline font-semibold"
-                >
+                Based on your audiometric profile, we recommend the{' '}
+                <a href={appendUtmParams("https://heardirectclub.com/products/nova")} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700 underline font-semibold">
                   Nova hearing aid system
                 </a>.
               </p>
             </div>
           </div>
 
-          {/* Why Nova is Recommended for Your Profile */}
           <div className="mb-6">
-            <h4 className="font-bold text-clinical-900 mb-3 text-lg">Why Nova Matches Your Hearing Profile:</h4>
+            <h4 className="font-bold text-clinical-900 mb-3 text-lg">Why Nova Matches Your Profile:</h4>
             <div className="space-y-3">
               {novaRecommendation.reasons.map((reason, idx) => (
                 <div key={idx} className="flex items-start gap-3 bg-primary-50 p-4 rounded-lg border border-primary-100">
@@ -560,9 +487,8 @@ export default function Results({ results, userData, onRestart }) {
             </div>
           </div>
 
-          {/* Nova Features That Address Your Needs */}
           <div className="mb-6">
-            <h4 className="font-bold text-clinical-900 mb-3 text-lg">How Nova Can Help You:</h4>
+            <h4 className="font-bold text-clinical-900 mb-3 text-lg">How Nova Can Help:</h4>
             <ul className="space-y-2">
               {novaRecommendation.features.map((feature, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-clinical-700">
@@ -573,18 +499,16 @@ export default function Results({ results, userData, onRestart }) {
             </ul>
           </div>
 
-          {/* CTA Button */}
-          <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg p-6 text-white">
+          <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl p-6 text-white">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
                 <h4 className="font-bold text-xl mb-1">Ready to Hear Better?</h4>
-                <p className="text-primary-100 text-sm">Explore the Nova hearing aid designed for your hearing needs.</p>
+                <p className="text-primary-100 text-sm">Explore the Nova hearing aid for your needs.</p>
               </div>
               <a
                 href={appendUtmParams("https://heardirectclub.com/products/nova")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-white text-primary-600 hover:bg-primary-50 font-bold px-6 py-3 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
+                target="_blank" rel="noopener noreferrer"
+                className="bg-white text-primary-600 hover:bg-primary-50 font-bold px-6 py-3 rounded-lg transition-colors duration-200 flex items-center gap-2 whitespace-nowrap shadow-md"
               >
                 Learn More About Nova
                 <ExternalLink className="w-5 h-5" />
@@ -593,73 +517,65 @@ export default function Results({ results, userData, onRestart }) {
           </div>
         </div>
 
-        {/* Test Methodology */}
+        {/* Methodology */}
         <div className="glass p-6 mb-6">
           <h3 className="text-xl font-bold text-clinical-900 mb-4">Assessment Methodology</h3>
           <div className="space-y-3 text-sm text-clinical-700">
             <div className="flex items-start gap-3">
               <Award className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
               <div>
-                <div className="font-semibold text-clinical-900">Pure-Tone Audiometry (PTA)</div>
-                <div>Standard clinical protocol testing 6 frequencies per ear (250 Hz - 8 kHz)</div>
+                <div className="font-semibold text-clinical-900">Clinical-Grade Method</div>
+                <div>Uses the same adaptive approach audiologists rely on — tones get quieter when you hear them and louder when you don't, to find your exact threshold.</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Award className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+              <Volume2 className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
               <div>
-                <div className="font-semibold text-clinical-900">Individualized Calibration</div>
-                <div>Per-ear baseline calibration to account for device and headphone variations</div>
+                <div className="font-semibold text-clinical-900">Precision Tone Delivery</div>
+                <div>Short pulsed tones with smooth fade-in/out for clean, accurate sound presentation.</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Award className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+              <ShieldCheck className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
               <div>
-                <div className="font-semibold text-clinical-900">Mixed Methodology</div>
-                <div>Combination of detection tests (yes/no response) and threshold adjustment tests (method of limits)</div>
+                <div className="font-semibold text-clinical-900">Built-in Reliability Checks</div>
+                <div>Silent "catch" tones are mixed in to verify you're responding accurately, not guessing.</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Award className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+              <Headphones className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
               <div>
-                <div className="font-semibold text-clinical-900">Monaural Presentation</div>
-                <div>Each ear tested independently with stereo panning for accurate lateralization</div>
+                <div className="font-semibold text-clinical-900">Personalized Calibration</div>
+                <div>Each ear is individually calibrated before the test to account for your device and headphones.</div>
               </div>
             </div>
           </div>
-          {results.calibrationBaseline && results.calibrationBaseline.left && results.calibrationBaseline.right && (
-            <div className="mt-4 p-3 bg-primary-50 rounded border border-primary-200">
+          {calibrationBaseline && calibrationBaseline.left !== null && calibrationBaseline.right !== null && (
+            <div className="mt-4 p-3 bg-primary-50 rounded-lg border border-primary-200">
               <p className="text-xs text-primary-800">
-                <strong>Your Calibration:</strong> Left ear baseline: {Math.abs(results.calibrationBaseline.left)} dB | 
-                Right ear baseline: {Math.abs(results.calibrationBaseline.right)} dB. 
-                Results are normalized to your individual hearing threshold.
+                <strong>Your Calibration:</strong> Left ear: {calibrationBaseline.left} dB HL |
+                Right ear: {calibrationBaseline.right} dB HL
               </p>
             </div>
           )}
         </div>
 
         {/* Disclaimer */}
-        <div className="bg-yellow-50 rounded-md p-4 mb-6 border border-yellow-200">
+        <div className="bg-yellow-50 rounded-lg p-4 mb-6 border border-yellow-200">
           <p className="text-sm text-yellow-800">
-            <strong>Medical Disclaimer:</strong> This online assessment is a screening tool only and does not replace 
-            professional audiological evaluation. Results are estimates based on self-administered testing in uncontrolled 
-            acoustic environments. For clinical diagnosis, treatment recommendations, and hearing aid fitting, consult a 
-            licensed audiologist or hearing healthcare professional.
+            <strong>Medical Disclaimer:</strong> This online assessment is a screening tool only. Results are estimates
+            from self-administered testing in uncontrolled environments. For diagnosis and treatment, consult a
+            licensed audiologist.
           </p>
         </div>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={onRestart}
-            className="flex-1 btn-secondary py-4"
-          >
+          <button onClick={onRestart} className="flex-1 btn-secondary py-4">
             <RotateCcw className="w-5 h-5" />
             Take Test Again
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex-1 btn-primary py-4"
-          >
+          <button onClick={() => window.print()} className="flex-1 btn-primary py-4">
             <Download className="w-5 h-5" />
             Save Results
           </button>

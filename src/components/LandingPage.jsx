@@ -154,7 +154,7 @@ export default function LandingPage({ onStart, onAbout, onContact, onEarlySigns,
               </p>
               <button
                 onClick={onStart}
-                className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 sm:px-8 sm:py-4 sm:text-lg rounded-full transition-colors duration-200 w-full sm:w-auto"
+                className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 sm:px-8 sm:py-4 sm:text-lg rounded-xl transition-colors duration-200 w-full sm:w-auto shadow-md"
               >
                 Begin Hearing Test
               </button>
